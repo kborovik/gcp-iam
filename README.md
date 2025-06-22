@@ -2,24 +2,53 @@
 
 A command-line interface (CLI) tool written in Go that displays Google Cloud IAM predefined roles and their associated permissions. This tool helps developers, system administrators, and security professionals understand and explore Google Cloud's IAM role hierarchy.
 
-## Features
+# Features
 
-### Core Functionality
+## Core Functionality
 
-1. Roles:
+The application consist of 4 main commands
 
-- Search pre-defined roles, simple search, display role name i.e. `compute.imageUser`,
-- List pre-defined role permissions, display role permissions i.e `compute.imageUser` has permissions `compute.images.create`, `compute.images.delete`, `compute.images.get`, `compute.images.list`, `compute.images.update`
-- Compare permissions between 2 roles
+### Role
 
-1. Permissions:
+Command:
 
-- Search permissions and display roles that have those permissions
+- `role` - Query IAM Roles
 
-1. Sync:
+Sub-commands:
 
-- Synchronize permissions and roles
+- `search` - Search pre-defined roles, simple search, display role name i.e. `compute.imageUser`,
+- `show` - Show pre-defined role permissions formatted as table
+- `compare` - Compare permissions between 2 roles
 
-## Architecture
+### Permission
 
-Storage database is `sqlite3`
+Command:
+
+- `permission` - Query IAM Permissions
+
+Sub-commands:
+
+- `show` - Show permission details
+- `search` - Search permissions
+- `compare` - Compare 2 permissions roles
+
+### Update
+
+Command:
+
+- `update` - Update IAM roles and permissions
+
+  - Creates DB schema
+  - Stores Google pre-defined IAM Roles and Permissions in sqlite3 database
+
+### Info
+
+Command:
+
+- `info` - displays application configuration details
+
+## Software Components
+
+- Command-line interface built using github.com/urfave/cli/v3
+- Visual interface elements (table) using github.com/charmbracelet/lipgloss/table
+- Data storage utilizes sqlite3 database
