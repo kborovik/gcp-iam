@@ -2,53 +2,121 @@
 
 A command-line interface (CLI) tool written in Go that displays Google Cloud IAM predefined roles and their associated permissions. This tool helps developers, system administrators, and security professionals understand and explore Google Cloud's IAM role hierarchy.
 
-# Features
+## Features
 
-## Core Functionality
+### Local SQLite Database
 
-The application consist of 4 main commands
+- Stores Google Cloud IAM roles and permissions locally
+- Fast querying and searching capabilities
+- Automatic database creation and schema management
+- Uses name-based primary keys for efficient storage
 
-### Role
+### Configuration Management
 
-Command:
+- YAML-based configuration file at `~/.gcp-iam/config.yaml`
+- Automatic directory and file creation
+- Default database location: `~/.gcp-iam/database.sqlite`
+- Configurable log levels and cache directory
 
-- `role` - Query IAM Roles
+## Commands
 
-Sub-commands:
+### Role Commands
 
-- `search` - Search pre-defined roles, simple search, display role name i.e. `compute.imageUser`,
-- `show` - Show pre-defined role permissions formatted as table
-- `compare` - Compare permissions between 2 roles
+- `role show <role-name>` - Display role details and permissions
+- `role search <query>` - Search roles by name, title, or description
+- `role compare <role1> <role2>` - Compare permissions between two roles
 
-### Permission
+### Permission Commands
 
-Command:
+- `permission show <permission-name>` - Show permission details
+- `permission search <query>` - Search permissions by name or description
 
-- `permission` - Query IAM Permissions
+### Management Commands
 
-Sub-commands:
+- `update` - Update local database with latest Google Cloud IAM data
+- `info` - Display current application configuration
 
-- `show` - Show permission details
-- `search` - Search permissions
-- `compare` - Compare 2 permissions roles
+## Quick Start
 
-### Update
+```bash
+# View application configuration
+go run main.go info
 
-Command:
+# Search for compute-related roles
+go run main.go role search compute
 
-- `update` - Update IAM roles and permissions
+# Show details of a specific role
+go run main.go role show roles/compute.admin
+```
 
-  - Creates DB schema
-  - Stores Google pre-defined IAM Roles and Permissions in sqlite3 database
+## Architecture
 
-### Info
+### Software Components
 
-Command:
+- **CLI Framework**: Built with `github.com/urfave/cli/v3`
+- **Database**: SQLite with pure Go driver (`modernc.org/sqlite`)
+- **Configuration**: YAML-based config with `gopkg.in/yaml.v3`
+- **Testing**: Comprehensive test coverage for all components
 
-- `info` - displays application configuration details
+### Database Schema
 
-## Software Components
+```sql
+-- Roles table (name as primary key)
+CREATE TABLE roles (
+    name TEXT PRIMARY KEY,
+    title TEXT,
+    description TEXT,
+    stage TEXT,
+    deleted BOOLEAN DEFAULT FALSE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
-- Command-line interface built using github.com/urfave/cli/v3
-- Visual interface elements (table) using github.com/charmbracelet/lipgloss/table
-- Data storage utilizes sqlite3 database
+-- Permissions table (name as primary key)
+CREATE TABLE permissions (
+    name TEXT PRIMARY KEY,
+    title TEXT,
+    description TEXT,
+    stage TEXT,
+    api_disabled BOOLEAN DEFAULT FALSE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Many-to-many relationship
+CREATE TABLE role_permissions (
+    role_name TEXT,
+    permission_name TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (role_name, permission_name),
+    FOREIGN KEY (role_name) REFERENCES roles(name) ON DELETE CASCADE,
+    FOREIGN KEY (permission_name) REFERENCES permissions(name) ON DELETE CASCADE
+);
+```
+
+### Project Structure
+
+```
+├── config/          # Configuration management
+│   ├── config.go    # Config loading and defaults
+│   └── config_test.go
+├── db/              # Database layer
+│   ├── database.go  # Connection and schema
+│   ├── models.go    # Data models and CRUD operations
+│   └── database_test.go
+├── main.go          # CLI application entry point
+├── main_test.go     # CLI functionality tests
+└── go.mod           # Go module dependencies
+```
+
+## Configuration
+
+The application uses a YAML configuration file located at `~/.gcp-iam/config.yaml`:
+
+```yaml
+log_level: info
+database_path: /home/user/.gcp-iam/database.sqlite
+cache_dir: /home/user/.gcp-iam/cache
+```
+
+All paths and directories are created automatically on first run.

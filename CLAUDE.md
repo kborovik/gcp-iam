@@ -7,7 +7,3 @@
 - MUST run `go fmt` and `go vet` after each edit to ensure code consistent formatting and quality
 - run advanced Go linter `staticcheck` for additional static analysis
 - prefer actively maintained and well-supported Go packages when making recommendations
-
-# Application CLI Instructions
-
-- test application by running `go run main.go` and follow help prompt
