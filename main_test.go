@@ -17,12 +17,12 @@ func TestCLICommands(t *testing.T) {
 		{
 			name:     "role show command",
 			args:     []string{"gcp-iam", "role", "show", "testRole"},
-			expected: "gcp-iam role show testRole",
+			expected: "Role 'testRole' not found",
 		},
 		{
 			name:     "role search command",
 			args:     []string{"gcp-iam", "role", "search", "test"},
-			expected: "gcp-iam role search test",
+			expected: "Found",
 		},
 		{
 			name:     "role compare command",
@@ -41,13 +41,13 @@ func TestCLICommands(t *testing.T) {
 		},
 		{
 			name:     "update command",
-			args:     []string{"gcp-iam", "update", "test"},
-			expected: "gcp-iam update test",
+			args:     []string{"gcp-iam", "update"},
+			expected: "Updating GCP IAM pre-defined roles",
 		},
 		{
 			name:     "info command",
-			args:     []string{"gcp-iam", "info", "test"},
-			expected: "gcp-iam info test",
+			args:     []string{"gcp-iam", "info"},
+			expected: "GCP IAM Configuration",
 		},
 	}
 

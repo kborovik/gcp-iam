@@ -178,7 +178,7 @@ var cmd = &cli.Command{
 				defer database.Close()
 
 				updater := update.New(database)
-				err = updater.UpdateRolesAndPermissions(ctx)
+				err = updater.UpdateRoles(ctx)
 				if err != nil {
 					return fmt.Errorf("failed to update roles and permissions: %w", err)
 				}
