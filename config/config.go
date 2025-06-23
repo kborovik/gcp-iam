@@ -57,10 +57,10 @@ func loadFromFile(cfg *Config, configPath string) error {
 	return nil
 }
 
-func (c *Config) ensureDirectories() error {
+func (cfg *Config) ensureDirectories() error {
 	dirs := []string{
-		filepath.Dir(c.DatabasePath),
-		c.CacheDir,
+		filepath.Dir(cfg.DatabasePath),
+		cfg.CacheDir,
 	}
 
 	for _, dir := range dirs {
@@ -72,7 +72,7 @@ func (c *Config) ensureDirectories() error {
 	return nil
 }
 
-func (c *Config) Save() error {
+func (cfg *Config) Save() error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get user home directory: %w", err)
@@ -85,7 +85,7 @@ func (c *Config) Save() error {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	data, err := yaml.Marshal(c)
+	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
