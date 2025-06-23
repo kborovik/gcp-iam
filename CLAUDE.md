@@ -6,5 +6,5 @@
 
 # Workflow
 
-- MUST run `go fmt` and `go vet`, `go test -v` after each edit to ensure code consistent formatting and quality
+- MUST run `go fmt`, `go vet`, `go mod tidy`, after each edit to ensure code consistent formatting and quality
 - MUST execute `go test -v` for each package as the final step in your implementation plan

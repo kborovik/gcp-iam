@@ -8,6 +8,7 @@ import (
 
 	"github.com/kborovik/gcp-iam/config"
 	"github.com/kborovik/gcp-iam/db"
+	"github.com/kborovik/gcp-iam/update"
 	"github.com/urfave/cli/v3"
 )
 
@@ -102,7 +103,17 @@ var cmd = &cli.Command{
 							return fmt.Errorf("search query is required")
 						}
 
-						database := cmd.Root().Metadata["db"].(*db.DB)
+						cfg, err := config.Load()
+						if err != nil {
+							return fmt.Errorf("failed to load config: %w", err)
+						}
+
+						database, err := db.New(cfg.DatabasePath)
+						if err != nil {
+							return fmt.Errorf("failed to open database: %w", err)
+						}
+						defer database.Close()
+
 						roles, err := database.SearchRoles(query)
 						if err != nil {
 							return fmt.Errorf("failed to search roles: %w", err)
@@ -155,7 +166,23 @@ var cmd = &cli.Command{
 			Name:  "update",
 			Usage: "Update IAM roles and permissions",
 			Action: func(ctx context.Context, cmd *cli.Command) error {
-				fmt.Println(cmd.FullName(), cmd.Args().First())
+				cfg, err := config.Load()
+				if err != nil {
+					return fmt.Errorf("failed to load config: %w", err)
+				}
+
+				database, err := db.New(cfg.DatabasePath)
+				if err != nil {
+					return fmt.Errorf("failed to open database: %w", err)
+				}
+				defer database.Close()
+
+				updater := update.New(database)
+				err = updater.UpdateRolesAndPermissions(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to update roles and permissions: %w", err)
+				}
+
 				return nil
 			},
 		},
