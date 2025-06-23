@@ -137,6 +137,32 @@ func (db *DB) GetRolePermissions(roleName string) ([]Permission, error) {
 	return permissions, rows.Err()
 }
 
+func (db *DB) GetAllRoles() ([]Role, error) {
+	sqlQuery := `
+		SELECT name, title, description, stage, deleted, created_at, updated_at
+		FROM roles
+		WHERE deleted = FALSE
+		ORDER BY name
+	`
+	rows, err := db.conn.Query(sqlQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var roles []Role
+	for rows.Next() {
+		var role Role
+		err := rows.Scan(&role.Name, &role.Title, &role.Description, &role.Stage, &role.Deleted, &role.CreatedAt, &role.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+	}
+
+	return roles, rows.Err()
+}
+
 func (db *DB) SearchRoles(query string) ([]Role, error) {
 	sqlQuery := `
 		SELECT name, title, description, stage, deleted, created_at, updated_at

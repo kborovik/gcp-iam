@@ -178,11 +178,30 @@ var cmd = &cli.Command{
 				defer database.Close()
 
 				updater := update.New(database)
+
+				// First update all roles
 				err = updater.UpdateRoles(ctx)
 				if err != nil {
-					return fmt.Errorf("failed to update roles and permissions: %w", err)
+					return fmt.Errorf("failed to update roles: %w", err)
 				}
 
+				// Then update permissions for all roles
+				fmt.Println("Fetching permissions for all roles...")
+				roles, err := database.GetAllRoles()
+				if err != nil {
+					return fmt.Errorf("failed to get roles from database: %w", err)
+				}
+
+				for i, role := range roles {
+					fmt.Printf("Updating permissions for role %d/%d: %s\n", i+1, len(roles), role.Name)
+					err = updater.UpdatePermissions(ctx, role.Name)
+					if err != nil {
+						fmt.Printf("Warning: failed to update permissions for role %s: %v\n", role.Name, err)
+						// Continue with other roles even if one fails
+					}
+				}
+
+				fmt.Println("Successfully updated IAM roles and permissions")
 				return nil
 			},
 		},

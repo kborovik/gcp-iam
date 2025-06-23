@@ -152,6 +152,47 @@ func TestRolePermissionLink(t *testing.T) {
 	}
 }
 
+func TestGetAllRoles(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := New(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create database: %v", err)
+	}
+	defer db.Close()
+
+	roles := []*Role{
+		{Name: "roles/compute.admin", Title: "Compute Admin", Description: "Full compute access"},
+		{Name: "roles/storage.viewer", Title: "Storage Viewer", Description: "View storage resources"},
+		{Name: "roles/compute.viewer", Title: "Compute Viewer", Description: "View compute resources"},
+	}
+
+	for _, role := range roles {
+		err = db.InsertRole(role)
+		if err != nil {
+			t.Fatalf("Failed to insert role: %v", err)
+		}
+	}
+
+	results, err := db.GetAllRoles()
+	if err != nil {
+		t.Fatalf("Failed to get all roles: %v", err)
+	}
+
+	if len(results) != 3 {
+		t.Errorf("Expected 3 results, got %d", len(results))
+	}
+
+	// Verify roles are sorted by name
+	expectedOrder := []string{"roles/compute.admin", "roles/compute.viewer", "roles/storage.viewer"}
+	for i, role := range results {
+		if role.Name != expectedOrder[i] {
+			t.Errorf("Expected role at index %d to be %s, got %s", i, expectedOrder[i], role.Name)
+		}
+	}
+}
+
 func TestSearchRoles(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")

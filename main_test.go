@@ -42,7 +42,7 @@ func TestCLICommands(t *testing.T) {
 		{
 			name:     "update command",
 			args:     []string{"gcp-iam", "update"},
-			expected: "Updating GCP IAM pre-defined roles",
+			expected: "Fetching permissions for all roles",
 		},
 		{
 			name:     "info command",
