@@ -30,7 +30,7 @@ var cmd = &cli.Command{
 		defer database.Close()
 
 		if cmd.Metadata == nil {
-			cmd.Metadata = make(map[string]interface{})
+			cmd.Metadata = make(map[string]any)
 		}
 		cmd.Metadata["config"] = cfg
 		cmd.Metadata["db"] = database
@@ -41,8 +41,8 @@ var cmd = &cli.Command{
 		{
 			Name:  "role",
 			Usage: "Query IAM Roles",
-			Action: func(ctx context.Context, cmd *cli.Command) error {
-				return cli.ShowAppHelp(cmd)
+			CommandNotFound: func(ctx context.Context, cmd *cli.Command, command string) {
+				cli.ShowAppHelp(cmd)
 			},
 			Commands: []*cli.Command{
 				{
@@ -129,8 +129,8 @@ var cmd = &cli.Command{
 		{
 			Name:  "permission",
 			Usage: "Query IAM Permissions",
-			Action: func(ctx context.Context, cmd *cli.Command) error {
-				return cli.ShowAppHelp(cmd)
+			CommandNotFound: func(ctx context.Context, cmd *cli.Command, command string) {
+				cli.ShowAppHelp(cmd)
 			},
 			Commands: []*cli.Command{
 				{
@@ -168,13 +168,10 @@ var cmd = &cli.Command{
 					return fmt.Errorf("failed to load config: %w", err)
 				}
 
-				fmt.Println("GCP IAM Configuration:")
-				fmt.Printf("  Database Path: %s\n", cfg.DatabasePath)
-				fmt.Printf("  Log Level: %s\n", cfg.LogLevel)
-				fmt.Printf("  Cache Directory: %s\n", cfg.CacheDir)
-
 				configPath, _ := config.GetDefaultConfigPath()
-				fmt.Printf("  Config File: %s\n", configPath)
+				fmt.Println("GCP IAM Configuration:")
+				fmt.Printf("  ConfigFile:   %s\n", configPath)
+				fmt.Printf("  DatabasePath: %s\n", cfg.DatabasePath)
 
 				return nil
 			},
