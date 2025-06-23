@@ -216,3 +216,30 @@ func (db *DB) SearchPermissions(query string) ([]Permission, error) {
 
 	return permissions, rows.Err()
 }
+
+func (db *DB) GetRolesWithPermission(permissionName string) ([]Role, error) {
+	query := `
+		SELECT r.name, r.title, r.description, r.stage, r.deleted, r.created_at, r.updated_at
+		FROM roles r
+		JOIN role_permissions rp ON r.name = rp.role_name
+		WHERE rp.permission_name = ? AND r.deleted = FALSE
+		ORDER BY r.name
+	`
+	rows, err := db.conn.Query(query, permissionName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var roles []Role
+	for rows.Next() {
+		var role Role
+		err := rows.Scan(&role.Name, &role.Title, &role.Description, &role.Stage, &role.Deleted, &role.CreatedAt, &role.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+	}
+
+	return roles, rows.Err()
+}

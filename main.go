@@ -148,7 +148,47 @@ var cmd = &cli.Command{
 					Name:  "show",
 					Usage: "Show IAM roles with permission",
 					Action: func(ctx context.Context, cmd *cli.Command) error {
-						fmt.Println(cmd.FullName(), cmd.Args().First())
+						permissionName := cmd.Args().First()
+						if permissionName == "" {
+							return fmt.Errorf("permission name is required")
+						}
+
+						cfg, err := config.Load()
+						if err != nil {
+							return fmt.Errorf("failed to load config: %w", err)
+						}
+
+						database, err := db.New(cfg.DatabasePath)
+						if err != nil {
+							return fmt.Errorf("failed to open database: %w", err)
+						}
+						defer database.Close()
+
+						permission, err := database.GetPermissionByName(permissionName)
+						if err != nil {
+							return fmt.Errorf("failed to get permission: %w", err)
+						}
+
+						if permission == nil {
+							fmt.Printf("Permission '%s' not found\n", permissionName)
+							return nil
+						}
+
+						fmt.Printf("Permission: %s\n", permission.Name)
+						fmt.Printf("Title: %s\n", permission.Title)
+						fmt.Printf("Description: %s\n", permission.Description)
+						fmt.Printf("Stage: %s\n", permission.Stage)
+
+						roles, err := database.GetRolesWithPermission(permission.Name)
+						if err != nil {
+							return fmt.Errorf("failed to get roles with permission: %w", err)
+						}
+
+						fmt.Printf("Roles with this permission (%d):\n", len(roles))
+						for _, role := range roles {
+							fmt.Printf("  %s - %s\n", role.Name, role.Title)
+						}
+
 						return nil
 					},
 				},
@@ -156,7 +196,32 @@ var cmd = &cli.Command{
 					Name:  "search",
 					Usage: "Search IAM permissions",
 					Action: func(ctx context.Context, cmd *cli.Command) error {
-						fmt.Println(cmd.FullName(), cmd.Args().First())
+						query := cmd.Args().First()
+						if query == "" {
+							return fmt.Errorf("search query is required")
+						}
+
+						cfg, err := config.Load()
+						if err != nil {
+							return fmt.Errorf("failed to load config: %w", err)
+						}
+
+						database, err := db.New(cfg.DatabasePath)
+						if err != nil {
+							return fmt.Errorf("failed to open database: %w", err)
+						}
+						defer database.Close()
+
+						permissions, err := database.SearchPermissions(query)
+						if err != nil {
+							return fmt.Errorf("failed to search permissions: %w", err)
+						}
+
+						fmt.Printf("Found %d permissions matching '%s':\n", len(permissions), query)
+						for _, perm := range permissions {
+							fmt.Printf("  %s - %s\n", perm.Name, perm.Title)
+						}
+
 						return nil
 					},
 				},

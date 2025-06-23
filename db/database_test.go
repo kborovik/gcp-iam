@@ -226,6 +226,62 @@ func TestSearchRoles(t *testing.T) {
 	}
 }
 
+func TestGetRolesWithPermission(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := New(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create database: %v", err)
+	}
+	defer db.Close()
+
+	// Insert test roles
+	roles := []*Role{
+		{Name: "roles/compute.admin", Title: "Compute Admin", Description: "Full compute access"},
+		{Name: "roles/storage.admin", Title: "Storage Admin", Description: "Full storage access"},
+	}
+
+	for _, role := range roles {
+		err = db.InsertRole(role)
+		if err != nil {
+			t.Fatalf("Failed to insert role: %v", err)
+		}
+	}
+
+	// Insert test permission
+	perm := &Permission{
+		Name:        "compute.instances.get",
+		Title:       "Get Instance",
+		Description: "Get compute instance",
+	}
+
+	err = db.InsertPermission(perm)
+	if err != nil {
+		t.Fatalf("Failed to insert permission: %v", err)
+	}
+
+	// Link permission to one role
+	err = db.LinkRolePermission("roles/compute.admin", "compute.instances.get")
+	if err != nil {
+		t.Fatalf("Failed to link role permission: %v", err)
+	}
+
+	// Test getting roles with permission
+	rolesWithPermission, err := db.GetRolesWithPermission("compute.instances.get")
+	if err != nil {
+		t.Fatalf("Failed to get roles with permission: %v", err)
+	}
+
+	if len(rolesWithPermission) != 1 {
+		t.Errorf("Expected 1 role with permission, got %d", len(rolesWithPermission))
+	}
+
+	if rolesWithPermission[0].Name != "roles/compute.admin" {
+		t.Errorf("Expected role name 'roles/compute.admin', got %s", rolesWithPermission[0].Name)
+	}
+}
+
 func TestSearchPermissions(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")

@@ -32,12 +32,12 @@ func TestCLICommands(t *testing.T) {
 		{
 			name:     "permission show command",
 			args:     []string{"gcp-iam", "permission", "show", "testPerm"},
-			expected: "gcp-iam permission show testPerm",
+			expected: "Permission 'testPerm' not found",
 		},
 		{
 			name:     "permission search command",
 			args:     []string{"gcp-iam", "permission", "search", "test"},
-			expected: "gcp-iam permission search test",
+			expected: "Found 0 permissions matching 'test'",
 		},
 		{
 			name:     "update command",
