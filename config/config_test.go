@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -35,10 +36,10 @@ func TestLoadConfigFromFile(t *testing.T) {
 		t.Fatalf("Failed to create config directory: %v", err)
 	}
 
-	configContent := `database_path: /custom/path/db.sqlite
+	configContent := fmt.Sprintf(`database_path: %s/db.sqlite
 log_level: debug
-cache_dir: /custom/cache
-`
+cache_dir: %s/cache
+`, configDir, configDir)
 
 	err = os.WriteFile(configFile, []byte(configContent), 0644)
 	if err != nil {
@@ -54,16 +55,18 @@ cache_dir: /custom/cache
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	if cfg.DatabasePath != "/custom/path/db.sqlite" {
-		t.Errorf("Expected DatabasePath '/custom/path/db.sqlite', got '%s'", cfg.DatabasePath)
+	expectedDBPath := filepath.Join(configDir, "db.sqlite")
+	if cfg.DatabasePath != expectedDBPath {
+		t.Errorf("Expected DatabasePath '%s', got '%s'", expectedDBPath, cfg.DatabasePath)
 	}
 
 	if cfg.LogLevel != "debug" {
 		t.Errorf("Expected LogLevel 'debug', got '%s'", cfg.LogLevel)
 	}
 
-	if cfg.CacheDir != "/custom/cache" {
-		t.Errorf("Expected CacheDir '/custom/cache', got '%s'", cfg.CacheDir)
+	expectedCacheDir := filepath.Join(configDir, "cache")
+	if cfg.CacheDir != expectedCacheDir {
+		t.Errorf("Expected CacheDir '%s', got '%s'", expectedCacheDir, cfg.CacheDir)
 	}
 }
 
@@ -75,9 +78,9 @@ func TestSaveConfig(t *testing.T) {
 	os.Setenv("HOME", tmpDir)
 
 	cfg := &Config{
-		DatabasePath: "/test/path/db.sqlite",
+		DatabasePath: filepath.Join(tmpDir, "data", "db.sqlite"),
 		LogLevel:     "debug",
-		CacheDir:     "/test/cache",
+		CacheDir:     filepath.Join(tmpDir, "cache"),
 	}
 
 	err := cfg.Save()

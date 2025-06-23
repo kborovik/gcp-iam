@@ -61,7 +61,7 @@ func TestCLICommands(t *testing.T) {
 			os.Stdout = w
 
 			err := cmd.Run(context.Background(), tt.args)
-			
+
 			w.Close()
 			buf.ReadFrom(r)
 			output := strings.TrimSpace(buf.String())
@@ -77,4 +77,3 @@ func TestCLICommands(t *testing.T) {
 		})
 	}
 }
-

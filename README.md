@@ -40,13 +40,13 @@ A command-line interface (CLI) tool written in Go that displays Google Cloud IAM
 
 ```bash
 # View application configuration
-go run main.go info
+gcp-iam info
 
 # Search for compute-related roles
-go run main.go role search compute
+gcp-iam role search compute
 
 # Show details of a specific role
-go run main.go role show roles/compute.admin
+gcp-iam role show roles/compute.admin
 ```
 
 ## Architecture
