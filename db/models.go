@@ -285,6 +285,33 @@ func (db *DB) CountPermissions() (int, error) {
 	return count, err
 }
 
+// GetRoleNames returns a list of all role names for completion
+func (db *DB) GetRoleNames() ([]string, error) {
+	query := `
+		SELECT name
+		FROM roles
+		WHERE deleted = FALSE
+		ORDER BY name
+	`
+	rows, err := db.conn.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var roleNames []string
+	for rows.Next() {
+		var name string
+		err := rows.Scan(&name)
+		if err != nil {
+			return nil, err
+		}
+		roleNames = append(roleNames, name)
+	}
+
+	return roleNames, rows.Err()
+}
+
 // MigrateRoleNames removes "roles/" prefix from existing role names in database
 func (db *DB) MigrateRoleNames() error {
 	// Update roles table

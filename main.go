@@ -21,6 +21,42 @@ func normalizeRoleName(roleName string) string {
 	return roleName
 }
 
+// completeRoleNames provides completion for role names
+func completeRoleNames(ctx context.Context, cmd *cli.Command) {
+	// Check if this is being called for completion
+	if os.Getenv("COMP_LINE") == "" {
+		return
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return
+	}
+
+	database, err := db.New(cfg.DatabasePath)
+	if err != nil {
+		return
+	}
+	defer database.Close()
+
+	roleNames, err := database.GetRoleNames()
+	if err != nil {
+		return
+	}
+
+	// Filter based on current input if available
+	currentArg := ""
+	if args := cmd.Args(); args.Len() > 0 {
+		currentArg = args.First()
+	}
+
+	for _, name := range roleNames {
+		if currentArg == "" || strings.HasPrefix(name, currentArg) {
+			fmt.Println(name)
+		}
+	}
+}
+
 var cmd = &cli.Command{
 	Name:                  "gcp-iam",
 	Usage:                 "Query Google Cloud IAM Roles and Permissions",
@@ -58,6 +94,9 @@ var cmd = &cli.Command{
 				{
 					Name:  "show",
 					Usage: "Show IAM role permissions",
+					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
+						completeRoleNames(ctx, cmd)
+					},
 					Action: func(ctx context.Context, cmd *cli.Command) error {
 						roleName := cmd.Args().First()
 						if roleName == "" {
@@ -109,6 +148,9 @@ var cmd = &cli.Command{
 				{
 					Name:  "search",
 					Usage: "Search IAM roles",
+					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
+						completeRoleNames(ctx, cmd)
+					},
 					Action: func(ctx context.Context, cmd *cli.Command) error {
 						query := cmd.Args().First()
 						if query == "" {
@@ -290,26 +332,29 @@ var cmd = &cli.Command{
 			},
 		},
 		{
-			Name:  "migrate",
-			Usage: "Remove 'roles/' prefix from existing role names in database",
+			Name:   "complete-roles",
+			Usage:  "List all role names for shell completion",
+			Hidden: true,
 			Action: func(ctx context.Context, cmd *cli.Command) error {
 				cfg, err := config.Load()
 				if err != nil {
-					return fmt.Errorf("failed to load config: %w", err)
+					return err
 				}
 
 				database, err := db.New(cfg.DatabasePath)
 				if err != nil {
-					return fmt.Errorf("failed to open database: %w", err)
+					return err
 				}
 				defer database.Close()
 
-				err = database.MigrateRoleNames()
+				roleNames, err := database.GetRoleNames()
 				if err != nil {
-					return fmt.Errorf("failed to migrate role names: %w", err)
+					return err
 				}
 
-				fmt.Println("Successfully migrated role names - removed 'roles/' prefix")
+				for _, name := range roleNames {
+					fmt.Println(name)
+				}
 				return nil
 			},
 		},

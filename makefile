@@ -6,6 +6,11 @@ MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 
 default: help
 
+install:
+	$(call header,Install binary)
+	go install
+	cp tools/gcp-iam.fish ~/.config/fish/completions/
+
 ###############################################################################
 # GO Tests
 ###############################################################################
