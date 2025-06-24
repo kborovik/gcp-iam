@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/kborovik/gcp-iam/config"
 	"github.com/kborovik/gcp-iam/db"
@@ -175,7 +176,6 @@ var cmd = &cli.Command{
 						}
 
 						fmt.Printf("Permission: %s\n", permission.Permission)
-						fmt.Printf("Associated Role: %s\n", permission.Role)
 						fmt.Printf("Created At: %s\n", permission.CreatedAt.Format("2006-01-02 15:04:05"))
 
 						roles, err := database.GetRolesWithPermission(permission.Permission)
@@ -246,6 +246,10 @@ var cmd = &cli.Command{
 				// First update all roles
 				err = updater.UpdateRoles(ctx)
 				if err != nil {
+					// Check if it's an authentication error and return it directly
+					if strings.Contains(err.Error(), "Authentication failed accessing Google Cloud IAM API") {
+						return err
+					}
 					return fmt.Errorf("failed to update roles: %w", err)
 				}
 
@@ -283,8 +287,26 @@ var cmd = &cli.Command{
 					return fmt.Errorf("failed to load config: %w", err)
 				}
 
+				database, err := db.New(cfg.DatabasePath)
+				if err != nil {
+					return fmt.Errorf("failed to open database: %w", err)
+				}
+				defer database.Close()
+
+				roleCount, err := database.CountRoles()
+				if err != nil {
+					return fmt.Errorf("failed to count roles: %w", err)
+				}
+
+				permissionCount, err := database.CountPermissions()
+				if err != nil {
+					return fmt.Errorf("failed to count permissions: %w", err)
+				}
+
 				configPath, _ := config.GetDefaultConfigPath()
 				fmt.Println("GCP IAM Configuration:")
+				fmt.Printf("  Roles:        %d\n", roleCount)
+				fmt.Printf("  Permissions:  %d\n", permissionCount)
 				fmt.Printf("  ConfigFile:   %s\n", configPath)
 				fmt.Printf("  DatabasePath: %s\n", cfg.DatabasePath)
 

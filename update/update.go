@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/kborovik/gcp-iam/db"
 	"google.golang.org/api/iam/v1"
@@ -31,6 +32,10 @@ func (u *Updater) UpdateRoles(ctx context.Context) error {
 
 	roles, err := u.fetchRoles(ctx)
 	if err != nil {
+		// Check if it's an authentication error and return it directly
+		if strings.Contains(err.Error(), "Authentication failed accessing Google Cloud IAM API") {
+			return err
+		}
 		return fmt.Errorf("failed to fetch GCP IAM roles: %w", err)
 	}
 
@@ -78,7 +83,7 @@ func (u *Updater) UpdatePermissions(ctx context.Context, roleName string) error 
 func (u *Updater) fetchRoles(ctx context.Context) ([]db.Role, error) {
 	service, err := iam.NewService(ctx, option.WithScopes(iam.CloudPlatformScope))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create IAM service: %w", err)
+		return nil, fmt.Errorf("failed to create IAM service. \nTo fix authentication issues, run: gcloud auth login --update-adc")
 	}
 
 	var roles []db.Role
@@ -100,7 +105,7 @@ func (u *Updater) fetchRoles(ctx context.Context) ([]db.Role, error) {
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to list roles: %w", err)
+		return nil, fmt.Errorf("Authentication failed accessing Google Cloud IAM API.\nTo fix authentication issues, run: gcloud auth login --update-adc")
 	}
 
 	return roles, nil
@@ -110,12 +115,12 @@ func (u *Updater) fetchRoles(ctx context.Context) ([]db.Role, error) {
 func (u *Updater) fetchPermissions(ctx context.Context, roleName string) ([]string, error) {
 	service, err := iam.NewService(ctx, option.WithScopes(iam.CloudPlatformScope))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create IAM service: %w", err)
+		return nil, fmt.Errorf("Authentication failed accessing Google Cloud IAM API.\nTo fix authentication issues, run: gcloud auth login --update-adc")
 	}
 
 	role, err := service.Roles.Get(roleName).Context(ctx).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get role %s: %w", roleName, err)
+		return nil, fmt.Errorf("Authentication failed accessing Google Cloud IAM API for role %s.\nTo fix authentication issues, run: gcloud auth login --update-adc", roleName)
 	}
 
 	return role.IncludedPermissions, nil

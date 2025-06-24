@@ -269,3 +269,17 @@ func (db *DB) HasPermissions(roleName string) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+func (db *DB) CountRoles() (int, error) {
+	query := `SELECT COUNT(*) FROM roles WHERE deleted = FALSE`
+	var count int
+	err := db.conn.QueryRow(query).Scan(&count)
+	return count, err
+}
+
+func (db *DB) CountPermissions() (int, error) {
+	query := `SELECT COUNT(DISTINCT permission) FROM permissions`
+	var count int
+	err := db.conn.QueryRow(query).Scan(&count)
+	return count, err
+}
