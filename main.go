@@ -10,6 +10,7 @@ import (
 	"github.com/kborovik/gcp-iam/config"
 	"github.com/kborovik/gcp-iam/db"
 	"github.com/kborovik/gcp-iam/update"
+	"github.com/kborovik/gcp-iam/version"
 	"github.com/urfave/cli/v3"
 )
 
@@ -96,6 +97,7 @@ func completePermissionNames(cmd *cli.Command) {
 var cmd = &cli.Command{
 	Name:                  "gcp-iam",
 	Usage:                 "Query Google Cloud IAM Roles and Permissions",
+	Version:               version.GetVersion(),
 	Suggest:               true,
 	EnableShellCompletion: true,
 	HideHelpCommand:       true,
@@ -458,6 +460,17 @@ var cmd = &cli.Command{
 				fmt.Printf("  ConfigFile:   %s\n", configPath)
 				fmt.Printf("  DatabasePath: %s\n", cfg.DatabasePath)
 
+				return nil
+			},
+		},
+		{
+			Name:  "version",
+			Usage: "Show version information",
+			Action: func(ctx context.Context, cmd *cli.Command) error {
+				buildInfo := version.GetBuildInfo()
+				fmt.Printf("Version:    %s\n", buildInfo.Version)
+				fmt.Printf("Git Commit: %s\n", buildInfo.GitCommit)
+				fmt.Printf("Build Date: %s\n", buildInfo.BuildDate)
 				return nil
 			},
 		},

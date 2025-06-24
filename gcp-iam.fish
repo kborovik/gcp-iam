@@ -37,6 +37,7 @@ complete -c gcp-iam -n '__fish_use_subcommand' -f -a 'role' -d 'Query IAM Roles'
 complete -c gcp-iam -n '__fish_use_subcommand' -f -a 'permission' -d 'Query IAM Permissions'
 complete -c gcp-iam -n '__fish_use_subcommand' -f -a 'update' -d 'Update IAM roles and permissions'
 complete -c gcp-iam -n '__fish_use_subcommand' -f -a 'info' -d 'Show application configuration'
+complete -c gcp-iam -n '__fish_use_subcommand' -f -a 'version' -d 'Show version information'
 
 # Role subcommands
 complete -c gcp-iam -n '__fish_seen_subcommand_from role; and not __fish_seen_subcommand_from show search compare' -f -a 'show' -d 'Show IAM role permissions'
