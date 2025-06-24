@@ -31,7 +31,9 @@ build: dist ## Build binaries
 				-X github.com/kborovik/gcp-iam/version.BuildDate=$(BUILD_DATE)" \
 			-o "dist/$$output_name" .; \
 	done
-	cd dist && sha256sum gcp-iam-$(VERSION)-* > checksums.txt
+	cd dist
+	sha256sum gcp-iam-$(VERSION)-* > checksums.txt
+	gpg --default-key E4AFCA7FBB19FC029D519A524AEBB5178D5E96C1 --detach-sign --armor checksums.txt
 
 install: ## Install binary
 	$(call header,Install binary)
@@ -49,7 +51,8 @@ release: build ## Create GitHub release
 		--title "Release $(VERSION)" \
 		--attach dist/gcp-iam-$(VERSION)-linux-amd64 \
 		--attach dist/gcp-iam-$(VERSION)-darwin-arm64 \
-		--attach dist/checksums.txt
+		--attach dist/checksums.txt \
+		--attach dist/checksums.txt.asc
 
 ###############################################################################
 # GO Tests
