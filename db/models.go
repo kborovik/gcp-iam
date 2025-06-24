@@ -312,6 +312,32 @@ func (db *DB) GetRoleNames() ([]string, error) {
 	return roleNames, rows.Err()
 }
 
+// GetPermissionNames returns a list of all unique permission names for completion
+func (db *DB) GetPermissionNames() ([]string, error) {
+	query := `
+		SELECT DISTINCT permission
+		FROM permissions
+		ORDER BY permission
+	`
+	rows, err := db.conn.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var permissionNames []string
+	for rows.Next() {
+		var name string
+		err := rows.Scan(&name)
+		if err != nil {
+			return nil, err
+		}
+		permissionNames = append(permissionNames, name)
+	}
+
+	return permissionNames, rows.Err()
+}
+
 // MigrateRoleNames removes "roles/" prefix from existing role names in database
 func (db *DB) MigrateRoleNames() error {
 	// Update roles table

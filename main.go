@@ -15,14 +15,14 @@ import (
 
 // normalizeRoleName strips the "roles/" prefix if present
 func normalizeRoleName(roleName string) string {
-	if strings.HasPrefix(roleName, "roles/") {
-		return strings.TrimPrefix(roleName, "roles/")
+	if after, ok := strings.CutPrefix(roleName, "roles/"); ok {
+		return after
 	}
 	return roleName
 }
 
 // completeRoleNames provides completion for role names
-func completeRoleNames(ctx context.Context, cmd *cli.Command) {
+func completeRoleNames(cmd *cli.Command) {
 	// Check if this is being called for completion
 	if os.Getenv("COMP_LINE") == "" {
 		return
@@ -51,6 +51,42 @@ func completeRoleNames(ctx context.Context, cmd *cli.Command) {
 	}
 
 	for _, name := range roleNames {
+		if currentArg == "" || strings.HasPrefix(name, currentArg) {
+			fmt.Println(name)
+		}
+	}
+}
+
+// completePermissionNames provides completion for permission names
+func completePermissionNames(cmd *cli.Command) {
+	// Check if this is being called for completion
+	if os.Getenv("COMP_LINE") == "" {
+		return
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return
+	}
+
+	database, err := db.New(cfg.DatabasePath)
+	if err != nil {
+		return
+	}
+	defer database.Close()
+
+	permissionNames, err := database.GetPermissionNames()
+	if err != nil {
+		return
+	}
+
+	// Filter based on current input if available
+	currentArg := ""
+	if args := cmd.Args(); args.Len() > 0 {
+		currentArg = args.First()
+	}
+
+	for _, name := range permissionNames {
 		if currentArg == "" || strings.HasPrefix(name, currentArg) {
 			fmt.Println(name)
 		}
@@ -95,7 +131,7 @@ var cmd = &cli.Command{
 					Name:  "show",
 					Usage: "Show IAM role permissions",
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
-						completeRoleNames(ctx, cmd)
+						completeRoleNames(cmd)
 					},
 					Action: func(ctx context.Context, cmd *cli.Command) error {
 						roleName := cmd.Args().First()
@@ -149,7 +185,7 @@ var cmd = &cli.Command{
 					Name:  "search",
 					Usage: "Search IAM roles",
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
-						completeRoleNames(ctx, cmd)
+						completeRoleNames(cmd)
 					},
 					Action: func(ctx context.Context, cmd *cli.Command) error {
 						query := cmd.Args().First()
@@ -201,6 +237,9 @@ var cmd = &cli.Command{
 				{
 					Name:  "show",
 					Usage: "Show IAM roles with permission",
+					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
+						completePermissionNames(cmd)
+					},
 					Action: func(ctx context.Context, cmd *cli.Command) error {
 						permissionName := cmd.Args().First()
 						if permissionName == "" {
@@ -229,7 +268,6 @@ var cmd = &cli.Command{
 						}
 
 						fmt.Printf("Permission: %s\n", permission.Permission)
-						fmt.Printf("Created At: %s\n", permission.CreatedAt.Format("2006-01-02 15:04:05"))
 
 						roles, err := database.GetRolesWithPermission(permission.Permission)
 						if err != nil {
@@ -247,6 +285,9 @@ var cmd = &cli.Command{
 				{
 					Name:  "search",
 					Usage: "Search IAM permissions",
+					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
+						completePermissionNames(cmd)
+					},
 					Action: func(ctx context.Context, cmd *cli.Command) error {
 						query := cmd.Args().First()
 						if query == "" {
@@ -353,6 +394,33 @@ var cmd = &cli.Command{
 				}
 
 				for _, name := range roleNames {
+					fmt.Println(name)
+				}
+				return nil
+			},
+		},
+		{
+			Name:   "complete-permissions",
+			Usage:  "List all permission names for shell completion",
+			Hidden: true,
+			Action: func(ctx context.Context, cmd *cli.Command) error {
+				cfg, err := config.Load()
+				if err != nil {
+					return err
+				}
+
+				database, err := db.New(cfg.DatabasePath)
+				if err != nil {
+					return err
+				}
+				defer database.Close()
+
+				permissionNames, err := database.GetPermissionNames()
+				if err != nil {
+					return err
+				}
+
+				for _, name := range permissionNames {
 					fmt.Println(name)
 				}
 				return nil

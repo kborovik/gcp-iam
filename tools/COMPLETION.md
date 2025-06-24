@@ -33,7 +33,7 @@ This document explains how to set up TAB completion for role names in the `gcp-i
 
 ## Usage
 
-Once set up, you can use TAB completion for role names:
+Once set up, you can use TAB completion for role and permission names:
 
 ```bash
 # TAB completion for role names
@@ -45,14 +45,24 @@ gcp-iam role show compute.<TAB>
 
 gcp-iam role search storage<TAB>
 # Shows all roles containing "storage"
+
+# TAB completion for permission names
+gcp-iam permission show storage.<TAB>
+# Shows all permissions starting with "storage."
+
+gcp-iam permission show accessapproval.<TAB>
+# Shows all permissions starting with "accessapproval."
+
+gcp-iam permission search compute<TAB>
+# Shows all permissions containing "compute"
 ```
 
 ## Features
 
-- **Role name completion** for `gcp-iam role show <TAB>`
-- **Role name completion** for `gcp-iam role search <TAB>`
+- **Role name completion** for `gcp-iam role show <TAB>` and `gcp-iam role search <TAB>`
+- **Permission name completion** for `gcp-iam permission show <TAB>` and `gcp-iam permission search <TAB>`
 - **Command and subcommand completion** for all gcp-iam commands
-- **Fast completion** using dedicated `complete-roles` command
+- **Fast completion** using dedicated `complete-roles` and `complete-permissions` commands
 
 ## Troubleshooting
 
@@ -62,9 +72,10 @@ gcp-iam role search storage<TAB>
    ls ~/.config/fish/completions/gcp-iam.fish
    ```
 
-2. Test the completion function manually:
+2. Test the completion functions manually:
    ```bash
    gcp-iam complete-roles
+   gcp-iam complete-permissions
    ```
 
 3. Reload fish completions:
@@ -73,7 +84,7 @@ gcp-iam role search storage<TAB>
    ```
 
 ### Slow completion
-The completion uses a dedicated `gcp-iam complete-roles` command that quickly retrieves role names from the local database. If completion is slow, ensure:
+The completion uses dedicated `gcp-iam complete-roles` and `gcp-iam complete-permissions` commands that quickly retrieve names from the local database. If completion is slow, ensure:
 
 1. Database exists and is populated:
    ```bash
@@ -90,8 +101,10 @@ The completion uses a dedicated `gcp-iam complete-roles` command that quickly re
 The completion system works by:
 
 1. **Fish completion script** (`gcp-iam.fish`) defines completion rules
-2. **Dedicated completion command** (`gcp-iam complete-roles`) provides role names
-3. **Fast database query** retrieves role names from local SQLite database
+2. **Dedicated completion commands** (`gcp-iam complete-roles` and `gcp-iam complete-permissions`) provide names
+3. **Fast database queries** retrieve names from local SQLite database
 4. **Context-aware completion** only triggers for appropriate commands
 
-The completion is context-aware and only suggests role names when appropriate (e.g., after `gcp-iam role show` or `gcp-iam role search`).
+The completion is context-aware and only suggests the right type of names when appropriate:
+- Role names after `gcp-iam role show` or `gcp-iam role search`
+- Permission names after `gcp-iam permission show` or `gcp-iam permission search`

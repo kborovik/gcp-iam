@@ -16,13 +16,13 @@ func TestCLICommands(t *testing.T) {
 	}{
 		{
 			name:     "role show command",
-			args:     []string{"gcp-iam", "role", "show", "testRole"},
-			expected: "Role 'testRole' not found",
+			args:     []string{"gcp-iam", "role", "show", "actions.Viewer"},
+			expected: "Role: actions.Viewer",
 		},
 		{
 			name:     "role search command",
-			args:     []string{"gcp-iam", "role", "search", "test"},
-			expected: "Found",
+			args:     []string{"gcp-iam", "role", "search", "actions.Viewer"},
+			expected: "Found 1 roles matching 'actions.Viewer':",
 		},
 		{
 			name:     "role compare command",
@@ -31,13 +31,13 @@ func TestCLICommands(t *testing.T) {
 		},
 		{
 			name:     "permission show command",
-			args:     []string{"gcp-iam", "permission", "show", "testPerm"},
-			expected: "Permission 'testPerm' not found",
+			args:     []string{"gcp-iam", "permission", "show", "actions.agent.get"},
+			expected: "Permission: actions.agent.get",
 		},
 		{
 			name:     "permission search command",
-			args:     []string{"gcp-iam", "permission", "search", "test"},
-			expected: "Found 0 permissions matching 'test'",
+			args:     []string{"gcp-iam", "permission", "search", "actions.agent.get"},
+			expected: "Found 1 permissions matching 'actions.agent.get':",
 		},
 		{
 			name:     "update command",
