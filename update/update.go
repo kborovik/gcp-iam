@@ -54,24 +54,15 @@ func (u *Updater) UpdatePermissions(ctx context.Context, roleName string) error 
 
 	// Insert permissions into database and link them to the role
 	for _, permName := range permissions {
-		// Create permission record
+		// Create permission record with role linkage
 		perm := &db.Permission{
-			Name:        permName,
-			Title:       permName, // API doesn't provide separate title for permissions
-			Description: "",       // API doesn't provide description for individual permissions
-			Stage:       "GA",     // Default stage
+			Permission: permName,
+			Role:       roleName,
 		}
 
 		err = u.db.InsertPermission(perm)
 		if err != nil {
-			log.Printf("Warning: failed to insert permission %s: %v", permName, err)
-			// Continue even if permission insert fails
-		}
-
-		// Link permission to role
-		err = u.db.LinkRolePermission(roleName, permName)
-		if err != nil {
-			log.Printf("Warning: failed to link permission %s to role %s: %v", permName, roleName, err)
+			log.Printf("Warning: failed to insert permission %s for role %s: %v", permName, roleName, err)
 		}
 	}
 

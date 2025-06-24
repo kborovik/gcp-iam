@@ -16,19 +16,9 @@ type Role struct {
 }
 
 type Permission struct {
-	Name        string    `json:"name"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Stage       string    `json:"stage"`
-	APIDisabled bool      `json:"api_disabled"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-}
-
-type RolePermission struct {
-	RoleName       string    `json:"role_name"`
-	PermissionName string    `json:"permission_name"`
-	CreatedAt      time.Time `json:"created_at"`
+	Permission string    `json:"permission"`
+	Role       string    `json:"role"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 func (db *DB) InsertRole(role *Role) error {
@@ -48,26 +38,19 @@ func (db *DB) InsertRole(role *Role) error {
 
 func (db *DB) InsertPermission(perm *Permission) error {
 	query := `
-		INSERT INTO permissions (name, title, description, stage, api_disabled)
-		VALUES (?, ?, ?, ?, ?)
-		ON CONFLICT(name) DO UPDATE SET
-			title = excluded.title,
-			description = excluded.description,
-			stage = excluded.stage,
-			api_disabled = excluded.api_disabled,
-			updated_at = CURRENT_TIMESTAMP
+		INSERT OR IGNORE INTO permissions (permission, role)
+		VALUES (?, ?)
 	`
-	_, err := db.conn.Exec(query, perm.Name, perm.Title, perm.Description, perm.Stage, perm.APIDisabled)
+	_, err := db.conn.Exec(query, perm.Permission, perm.Role)
 	return err
 }
 
 func (db *DB) LinkRolePermission(roleName, permissionName string) error {
-	query := `
-		INSERT OR IGNORE INTO role_permissions (role_name, permission_name)
-		VALUES (?, ?)
-	`
-	_, err := db.conn.Exec(query, roleName, permissionName)
-	return err
+	perm := &Permission{
+		Permission: permissionName,
+		Role:       roleName,
+	}
+	return db.InsertPermission(perm)
 }
 
 func (db *DB) GetRoleByName(name string) (*Role, error) {
@@ -92,14 +75,15 @@ func (db *DB) GetRoleByName(name string) (*Role, error) {
 
 func (db *DB) GetPermissionByName(name string) (*Permission, error) {
 	query := `
-		SELECT name, title, description, stage, api_disabled, created_at, updated_at
+		SELECT permission, role, created_at
 		FROM permissions
-		WHERE name = ? AND api_disabled = FALSE
+		WHERE permission = ?
+		LIMIT 1
 	`
 	row := db.conn.QueryRow(query, name)
 
 	var perm Permission
-	err := row.Scan(&perm.Name, &perm.Title, &perm.Description, &perm.Stage, &perm.APIDisabled, &perm.CreatedAt, &perm.UpdatedAt)
+	err := row.Scan(&perm.Permission, &perm.Role, &perm.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -112,11 +96,10 @@ func (db *DB) GetPermissionByName(name string) (*Permission, error) {
 
 func (db *DB) GetRolePermissions(roleName string) ([]Permission, error) {
 	query := `
-		SELECT p.name, p.title, p.description, p.stage, p.api_disabled, p.created_at, p.updated_at
-		FROM permissions p
-		JOIN role_permissions rp ON p.name = rp.permission_name
-		WHERE rp.role_name = ? AND p.api_disabled = FALSE
-		ORDER BY p.name
+		SELECT permission, role, created_at
+		FROM permissions
+		WHERE role = ?
+		ORDER BY permission
 	`
 	rows, err := db.conn.Query(query, roleName)
 	if err != nil {
@@ -127,7 +110,7 @@ func (db *DB) GetRolePermissions(roleName string) ([]Permission, error) {
 	var permissions []Permission
 	for rows.Next() {
 		var perm Permission
-		err := rows.Scan(&perm.Name, &perm.Title, &perm.Description, &perm.Stage, &perm.APIDisabled, &perm.CreatedAt, &perm.UpdatedAt)
+		err := rows.Scan(&perm.Permission, &perm.Role, &perm.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -192,13 +175,13 @@ func (db *DB) SearchRoles(query string) ([]Role, error) {
 
 func (db *DB) SearchPermissions(query string) ([]Permission, error) {
 	sqlQuery := `
-		SELECT name, title, description, stage, api_disabled, created_at, updated_at
+		SELECT DISTINCT permission
 		FROM permissions
-		WHERE (name LIKE ? OR title LIKE ? OR description LIKE ?) AND api_disabled = FALSE
-		ORDER BY name
+		WHERE permission LIKE ?
+		ORDER BY permission
 	`
 	pattern := "%" + query + "%"
-	rows, err := db.conn.Query(sqlQuery, pattern, pattern, pattern)
+	rows, err := db.conn.Query(sqlQuery, pattern)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +190,7 @@ func (db *DB) SearchPermissions(query string) ([]Permission, error) {
 	var permissions []Permission
 	for rows.Next() {
 		var perm Permission
-		err := rows.Scan(&perm.Name, &perm.Title, &perm.Description, &perm.Stage, &perm.APIDisabled, &perm.CreatedAt, &perm.UpdatedAt)
+		err := rows.Scan(&perm.Permission)
 		if err != nil {
 			return nil, err
 		}
@@ -221,8 +204,8 @@ func (db *DB) GetRolesWithPermission(permissionName string) ([]Role, error) {
 	query := `
 		SELECT r.name, r.title, r.description, r.stage, r.deleted, r.created_at, r.updated_at
 		FROM roles r
-		JOIN role_permissions rp ON r.name = rp.role_name
-		WHERE rp.permission_name = ? AND r.deleted = FALSE
+		JOIN permissions p ON r.name = p.role
+		WHERE p.permission = ? AND r.deleted = FALSE
 		ORDER BY r.name
 	`
 	rows, err := db.conn.Query(query, permissionName)
@@ -242,4 +225,47 @@ func (db *DB) GetRolesWithPermission(permissionName string) ([]Role, error) {
 	}
 
 	return roles, rows.Err()
+}
+
+func (db *DB) GetRolesNeedingPermissionUpdate() ([]Role, error) {
+	query := `
+		SELECT name, title, description, stage, deleted, created_at, updated_at
+		FROM roles
+		WHERE deleted = FALSE
+		AND NOT EXISTS (
+			SELECT 1 FROM permissions WHERE role = roles.name
+		)
+		ORDER BY name
+	`
+	rows, err := db.conn.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var roles []Role
+	for rows.Next() {
+		var role Role
+		err := rows.Scan(&role.Name, &role.Title, &role.Description, &role.Stage, &role.Deleted, &role.CreatedAt, &role.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+	}
+
+	return roles, rows.Err()
+}
+
+func (db *DB) HasPermissions(roleName string) (bool, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM permissions
+		WHERE role = ?
+	`
+	var count int
+	err := db.conn.QueryRow(query, roleName).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

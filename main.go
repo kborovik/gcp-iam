@@ -88,7 +88,7 @@ var cmd = &cli.Command{
 
 						fmt.Printf("Permissions (%d):\n", len(permissions))
 						for _, perm := range permissions {
-							fmt.Printf("  - %s\n", perm.Name)
+							fmt.Printf("  - %s\n", perm.Permission)
 						}
 
 						return nil
@@ -174,12 +174,11 @@ var cmd = &cli.Command{
 							return nil
 						}
 
-						fmt.Printf("Permission: %s\n", permission.Name)
-						fmt.Printf("Title: %s\n", permission.Title)
-						fmt.Printf("Description: %s\n", permission.Description)
-						fmt.Printf("Stage: %s\n", permission.Stage)
+						fmt.Printf("Permission: %s\n", permission.Permission)
+						fmt.Printf("Associated Role: %s\n", permission.Role)
+						fmt.Printf("Created At: %s\n", permission.CreatedAt.Format("2006-01-02 15:04:05"))
 
-						roles, err := database.GetRolesWithPermission(permission.Name)
+						roles, err := database.GetRolesWithPermission(permission.Permission)
 						if err != nil {
 							return fmt.Errorf("failed to get roles with permission: %w", err)
 						}
@@ -219,7 +218,7 @@ var cmd = &cli.Command{
 
 						fmt.Printf("Found %d permissions matching '%s':\n", len(permissions), query)
 						for _, perm := range permissions {
-							fmt.Printf("  %s - %s\n", perm.Name, perm.Title)
+							fmt.Printf("  %s\n", perm.Permission)
 						}
 
 						return nil
@@ -250,19 +249,24 @@ var cmd = &cli.Command{
 					return fmt.Errorf("failed to update roles: %w", err)
 				}
 
-				// Then update permissions for all roles
-				fmt.Println("Fetching permissions for all roles...")
-				roles, err := database.GetAllRoles()
+				// Then update permissions only for roles that need it
+				fmt.Println("Identifying roles needing permission updates...")
+				rolesToUpdate, err := database.GetRolesNeedingPermissionUpdate()
 				if err != nil {
-					return fmt.Errorf("failed to get roles from database: %w", err)
+					return fmt.Errorf("failed to get roles needing updates: %w", err)
 				}
 
-				for i, role := range roles {
-					fmt.Printf("Updating permissions for role %d/%d: %s\n", i+1, len(roles), role.Name)
-					err = updater.UpdatePermissions(ctx, role.Name)
-					if err != nil {
-						fmt.Printf("Warning: failed to update permissions for role %s: %v\n", role.Name, err)
-						// Continue with other roles even if one fails
+				if len(rolesToUpdate) == 0 {
+					fmt.Println("No roles need permission updates - all roles are up to date")
+				} else {
+					fmt.Printf("Updating permissions for %d roles that need updates...\n", len(rolesToUpdate))
+					for i, role := range rolesToUpdate {
+						fmt.Printf("Updating permissions for role %d/%d: %s\n", i+1, len(rolesToUpdate), role.Name)
+						err = updater.UpdatePermissions(ctx, role.Name)
+						if err != nil {
+							fmt.Printf("Warning: failed to update permissions for role %s: %v\n", role.Name, err)
+							// Continue with other roles even if one fails
+						}
 					}
 				}
 

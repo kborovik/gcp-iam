@@ -49,26 +49,15 @@ func (db *DB) createTables() error {
 	);
 
 	CREATE TABLE IF NOT EXISTS permissions (
-		name TEXT PRIMARY KEY,
-		title TEXT,
-		description TEXT,
-		stage TEXT,
-		api_disabled BOOLEAN DEFAULT FALSE,
+		permission TEXT,
+		role TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		PRIMARY KEY (permission, role),
+		FOREIGN KEY (role) REFERENCES roles(name) ON DELETE CASCADE
 	);
 
-	CREATE TABLE IF NOT EXISTS role_permissions (
-		role_name TEXT,
-		permission_name TEXT,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		PRIMARY KEY (role_name, permission_name),
-		FOREIGN KEY (role_name) REFERENCES roles(name) ON DELETE CASCADE,
-		FOREIGN KEY (permission_name) REFERENCES permissions(name) ON DELETE CASCADE
-	);
-
-	CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON role_permissions(role_name);
-	CREATE INDEX IF NOT EXISTS idx_role_permissions_permission ON role_permissions(permission_name);
+	CREATE INDEX IF NOT EXISTS idx_permissions_role ON permissions(role);
+	CREATE INDEX IF NOT EXISTS idx_permissions_permission ON permissions(permission);
 	`
 
 	_, err := db.conn.Exec(schema)

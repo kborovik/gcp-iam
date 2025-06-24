@@ -73,11 +73,8 @@ func TestPermissionOperations(t *testing.T) {
 	defer db.Close()
 
 	perm := &Permission{
-		Name:        "compute.instances.get",
-		Title:       "Get Instance",
-		Description: "Get compute instance details",
-		Stage:       "GA",
-		APIDisabled: false,
+		Permission: "compute.instances.get",
+		Role:       "roles/compute.admin",
 	}
 
 	err = db.InsertPermission(perm)
@@ -94,8 +91,8 @@ func TestPermissionOperations(t *testing.T) {
 		t.Fatal("Permission not found")
 	}
 
-	if retrieved.Name != perm.Name {
-		t.Errorf("Expected permission name %s, got %s", perm.Name, retrieved.Name)
+	if retrieved.Permission != perm.Permission {
+		t.Errorf("Expected permission name %s, got %s", perm.Permission, retrieved.Permission)
 	}
 }
 
@@ -117,10 +114,8 @@ func TestRolePermissionLink(t *testing.T) {
 	}
 
 	perm := &Permission{
-		Name:        "compute.instances.get",
-		Title:       "Get Instance",
-		Description: "Get compute instance details",
-		Stage:       "GA",
+		Permission: "compute.instances.get",
+		Role:       role.Name,
 	}
 
 	err = db.InsertRole(role)
@@ -133,11 +128,6 @@ func TestRolePermissionLink(t *testing.T) {
 		t.Fatalf("Failed to insert permission: %v", err)
 	}
 
-	err = db.LinkRolePermission(role.Name, perm.Name)
-	if err != nil {
-		t.Fatalf("Failed to link role and permission: %v", err)
-	}
-
 	permissions, err := db.GetRolePermissions(role.Name)
 	if err != nil {
 		t.Fatalf("Failed to get role permissions: %v", err)
@@ -147,8 +137,8 @@ func TestRolePermissionLink(t *testing.T) {
 		t.Fatalf("Expected 1 permission, got %d", len(permissions))
 	}
 
-	if permissions[0].Name != perm.Name {
-		t.Errorf("Expected permission name %s, got %s", perm.Name, permissions[0].Name)
+	if permissions[0].Permission != perm.Permission {
+		t.Errorf("Expected permission name %s, got %s", perm.Permission, permissions[0].Permission)
 	}
 }
 
@@ -251,9 +241,8 @@ func TestGetRolesWithPermission(t *testing.T) {
 
 	// Insert test permission
 	perm := &Permission{
-		Name:        "compute.instances.get",
-		Title:       "Get Instance",
-		Description: "Get compute instance",
+		Permission: "compute.instances.get",
+		Role:       "roles/compute.admin",
 	}
 
 	err = db.InsertPermission(perm)
@@ -282,6 +271,129 @@ func TestGetRolesWithPermission(t *testing.T) {
 	}
 }
 
+func TestHasPermissions(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := New(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create database: %v", err)
+	}
+	defer db.Close()
+
+	// Insert test role
+	role := &Role{
+		Name:        "roles/compute.admin",
+		Title:       "Compute Admin",
+		Description: "Full compute access",
+	}
+
+	err = db.InsertRole(role)
+	if err != nil {
+		t.Fatalf("Failed to insert role: %v", err)
+	}
+
+	// Test role without permissions
+	hasPerms, err := db.HasPermissions("roles/compute.admin")
+	if err != nil {
+		t.Fatalf("Failed to check permissions: %v", err)
+	}
+
+	if hasPerms {
+		t.Error("Expected role to have no permissions initially")
+	}
+
+	// Add a permission
+	perm := &Permission{
+		Permission: "compute.instances.get",
+		Role:       "roles/compute.admin",
+	}
+
+	err = db.InsertPermission(perm)
+	if err != nil {
+		t.Fatalf("Failed to insert permission: %v", err)
+	}
+
+	// Test role with permissions
+	hasPerms, err = db.HasPermissions("roles/compute.admin")
+	if err != nil {
+		t.Fatalf("Failed to check permissions: %v", err)
+	}
+
+	if !hasPerms {
+		t.Error("Expected role to have permissions after linking")
+	}
+}
+
+func TestGetRolesNeedingPermissionUpdate(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := New(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create database: %v", err)
+	}
+	defer db.Close()
+
+	// Insert roles - one with permissions, one without
+	roleWithPerms := &Role{
+		Name:        "roles/compute.admin",
+		Title:       "Compute Admin",
+		Description: "Full compute access",
+	}
+
+	roleWithoutPerms := &Role{
+		Name:        "roles/storage.admin",
+		Title:       "Storage Admin",
+		Description: "Full storage access",
+	}
+
+	err = db.InsertRole(roleWithPerms)
+	if err != nil {
+		t.Fatalf("Failed to insert role: %v", err)
+	}
+
+	err = db.InsertRole(roleWithoutPerms)
+	if err != nil {
+		t.Fatalf("Failed to insert role: %v", err)
+	}
+
+	// Add permission to first role
+	perm := &Permission{
+		Permission: "compute.instances.get",
+		Role:       "roles/compute.admin",
+	}
+
+	err = db.InsertPermission(perm)
+	if err != nil {
+		t.Fatalf("Failed to insert permission: %v", err)
+	}
+
+	// Get roles needing updates
+	rolesToUpdate, err := db.GetRolesNeedingPermissionUpdate()
+	if err != nil {
+		t.Fatalf("Failed to get roles needing updates: %v", err)
+	}
+
+	// Should return at least the role without permissions and possibly recently updated roles
+	if len(rolesToUpdate) == 0 {
+		t.Error("Expected at least one role needing updates")
+	}
+
+	// Check that the role without permissions is included
+	foundRoleWithoutPerms := false
+	for _, role := range rolesToUpdate {
+		if role.Name == "roles/storage.admin" {
+			foundRoleWithoutPerms = true
+			break
+		}
+	}
+
+	if !foundRoleWithoutPerms {
+		t.Error("Expected role without permissions to be in roles needing updates")
+	}
+}
+
 func TestSearchPermissions(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
@@ -293,9 +405,9 @@ func TestSearchPermissions(t *testing.T) {
 	defer db.Close()
 
 	permissions := []*Permission{
-		{Name: "compute.instances.get", Title: "Get Instance", Description: "Get compute instance"},
-		{Name: "compute.instances.list", Title: "List Instances", Description: "List compute instances"},
-		{Name: "storage.buckets.get", Title: "Get Bucket", Description: "Get storage bucket"},
+		{Permission: "compute.instances.get", Role: "roles/compute.admin"},
+		{Permission: "compute.instances.list", Role: "roles/compute.admin"},
+		{Permission: "storage.buckets.get", Role: "roles/storage.admin"},
 	}
 
 	for _, perm := range permissions {
