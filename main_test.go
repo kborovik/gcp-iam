@@ -26,8 +26,8 @@ func TestCLICommands(t *testing.T) {
 		},
 		{
 			name:     "role compare command",
-			args:     []string{"gcp-iam", "role", "compare", "role1"},
-			expected: "gcp-iam role compare role1",
+			args:     []string{"gcp-iam", "role", "compare", "actions.Viewer", "actions.Viewer"},
+			expected: "Comparing roles:",
 		},
 		{
 			name:     "permission show command",

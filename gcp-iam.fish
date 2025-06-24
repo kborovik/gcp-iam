@@ -24,9 +24,10 @@ function __gcp_iam_permission_names
     end
 end
 
-# Complete role names for 'gcp-iam role show' and 'gcp-iam role search'
+# Complete role names for 'gcp-iam role show', 'gcp-iam role search', and 'gcp-iam role compare'
 complete -c gcp-iam -n '__fish_seen_subcommand_from role; and __fish_seen_subcommand_from show; and not __fish_seen_subcommand_from help' -f -a '(__gcp_iam_role_names)'
 complete -c gcp-iam -n '__fish_seen_subcommand_from role; and __fish_seen_subcommand_from search; and not __fish_seen_subcommand_from help' -f -a '(__gcp_iam_role_names)'
+complete -c gcp-iam -n '__fish_seen_subcommand_from role; and __fish_seen_subcommand_from compare; and not __fish_seen_subcommand_from help' -f -a '(__gcp_iam_role_names)'
 
 # Complete permission names for 'gcp-iam permission show' and 'gcp-iam permission search'
 complete -c gcp-iam -n '__fish_seen_subcommand_from permission; and __fish_seen_subcommand_from show; and not __fish_seen_subcommand_from help' -f -a '(__gcp_iam_permission_names)'

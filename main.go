@@ -222,8 +222,112 @@ var cmd = &cli.Command{
 				{
 					Name:  "compare",
 					Usage: "Compare permissions of 2 IAM roles",
+					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
+						completeRoleNames(cmd)
+					},
 					Action: func(ctx context.Context, cmd *cli.Command) error {
-						fmt.Println(cmd.FullName(), cmd.Args().First())
+						args := cmd.Args().Slice()
+						if len(args) < 2 {
+							return fmt.Errorf("two role names are required for comparison")
+						}
+
+						role1Name := normalizeRoleName(args[0])
+						role2Name := normalizeRoleName(args[1])
+
+						cfg, err := config.Load()
+						if err != nil {
+							return fmt.Errorf("failed to load config: %w", err)
+						}
+
+						database, err := db.New(cfg.DatabasePath)
+						if err != nil {
+							return fmt.Errorf("failed to open database: %w", err)
+						}
+						defer database.Close()
+
+						// Get both roles
+						role1, err := database.GetRoleByName(role1Name)
+						if err != nil {
+							return fmt.Errorf("failed to get role '%s': %w", role1Name, err)
+						}
+						if role1 == nil {
+							return fmt.Errorf("role '%s' not found", role1Name)
+						}
+
+						role2, err := database.GetRoleByName(role2Name)
+						if err != nil {
+							return fmt.Errorf("failed to get role '%s': %w", role2Name, err)
+						}
+						if role2 == nil {
+							return fmt.Errorf("role '%s' not found", role2Name)
+						}
+
+						// Get permissions for both roles
+						perms1, err := database.GetRolePermissions(role1.Name)
+						if err != nil {
+							return fmt.Errorf("failed to get permissions for role '%s': %w", role1.Name, err)
+						}
+
+						perms2, err := database.GetRolePermissions(role2.Name)
+						if err != nil {
+							return fmt.Errorf("failed to get permissions for role '%s': %w", role2.Name, err)
+						}
+
+						// Create maps for easier comparison
+						perms1Map := make(map[string]bool)
+						for _, perm := range perms1 {
+							perms1Map[perm.Permission] = true
+						}
+
+						perms2Map := make(map[string]bool)
+						for _, perm := range perms2 {
+							perms2Map[perm.Permission] = true
+						}
+
+						// Find permissions unique to each role and common permissions
+						var onlyInRole1, onlyInRole2, common []string
+
+						for perm := range perms1Map {
+							if perms2Map[perm] {
+								common = append(common, perm)
+							} else {
+								onlyInRole1 = append(onlyInRole1, perm)
+							}
+						}
+
+						for perm := range perms2Map {
+							if !perms1Map[perm] {
+								onlyInRole2 = append(onlyInRole2, perm)
+							}
+						}
+
+						// Display comparison results
+						fmt.Printf("Comparing roles:\n")
+						fmt.Printf("  Role 1: %s (%s)\n", role1.Name, role1.Title)
+						fmt.Printf("  Role 2: %s (%s)\n\n", role2.Name, role2.Title)
+
+						fmt.Printf("Common permissions (%d):\n", len(common))
+						for _, perm := range common {
+							fmt.Printf("  ✓ %s\n", perm)
+						}
+
+						fmt.Printf("\nPermissions only in '%s' (%d):\n", role1.Name, len(onlyInRole1))
+						for _, perm := range onlyInRole1 {
+							fmt.Printf("  - %s\n", perm)
+						}
+
+						fmt.Printf("\nPermissions only in '%s' (%d):\n", role2.Name, len(onlyInRole2))
+						for _, perm := range onlyInRole2 {
+							fmt.Printf("  + %s\n", perm)
+						}
+
+						fmt.Printf("\nSummary:\n")
+						fmt.Printf("  Total permissions in '%s': %d\n", role1.Name, len(perms1))
+						fmt.Printf("  Total permissions in '%s': %d\n", role2.Name, len(perms2))
+						fmt.Printf("  Common permissions: %d\n", len(common))
+						fmt.Printf("  Unique to '%s': %d\n", role1.Name, len(onlyInRole1))
+						fmt.Printf("  Unique to '%s': %d\n", role2.Name, len(onlyInRole2))
+
 						return nil
 					},
 				},
