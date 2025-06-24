@@ -93,8 +93,14 @@ func (u *Updater) fetchRoles(ctx context.Context) ([]db.Role, error) {
 
 	err = call.Pages(ctx, func(page *iam.ListRolesResponse) error {
 		for _, role := range page.Roles {
+			// Strip "roles/" prefix from role name
+			roleName := role.Name
+			if strings.HasPrefix(roleName, "roles/") {
+				roleName = strings.TrimPrefix(roleName, "roles/")
+			}
+
 			dbRole := db.Role{
-				Name:        role.Name,
+				Name:        roleName,
 				Title:       role.Title,
 				Description: role.Description,
 				Stage:       role.Stage,
@@ -118,7 +124,13 @@ func (u *Updater) fetchPermissions(ctx context.Context, roleName string) ([]stri
 		return nil, fmt.Errorf("Authentication failed accessing Google Cloud IAM API.\nTo fix authentication issues, run: gcloud auth login --update-adc")
 	}
 
-	role, err := service.Roles.Get(roleName).Context(ctx).Do()
+	// Add "roles/" prefix for API call if not present
+	apiRoleName := roleName
+	if !strings.HasPrefix(apiRoleName, "roles/") {
+		apiRoleName = "roles/" + roleName
+	}
+
+	role, err := service.Roles.Get(apiRoleName).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("Authentication failed accessing Google Cloud IAM API for role %s.\nTo fix authentication issues, run: gcloud auth login --update-adc", roleName)
 	}

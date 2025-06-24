@@ -13,6 +13,14 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// normalizeRoleName strips the "roles/" prefix if present
+func normalizeRoleName(roleName string) string {
+	if strings.HasPrefix(roleName, "roles/") {
+		return strings.TrimPrefix(roleName, "roles/")
+	}
+	return roleName
+}
+
 var cmd = &cli.Command{
 	Name:                  "gcp-iam",
 	Usage:                 "Query Google Cloud IAM Roles and Permissions",
@@ -55,6 +63,9 @@ var cmd = &cli.Command{
 						if roleName == "" {
 							return fmt.Errorf("role name is required")
 						}
+
+						// Normalize role name (strip roles/ prefix if present)
+						roleName = normalizeRoleName(roleName)
 
 						cfg, err := config.Load()
 						if err != nil {
@@ -275,6 +286,30 @@ var cmd = &cli.Command{
 				}
 
 				fmt.Println("Successfully updated IAM roles and permissions")
+				return nil
+			},
+		},
+		{
+			Name:  "migrate",
+			Usage: "Remove 'roles/' prefix from existing role names in database",
+			Action: func(ctx context.Context, cmd *cli.Command) error {
+				cfg, err := config.Load()
+				if err != nil {
+					return fmt.Errorf("failed to load config: %w", err)
+				}
+
+				database, err := db.New(cfg.DatabasePath)
+				if err != nil {
+					return fmt.Errorf("failed to open database: %w", err)
+				}
+				defer database.Close()
+
+				err = database.MigrateRoleNames()
+				if err != nil {
+					return fmt.Errorf("failed to migrate role names: %w", err)
+				}
+
+				fmt.Println("Successfully migrated role names - removed 'roles/' prefix")
 				return nil
 			},
 		},

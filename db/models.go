@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 )
 
@@ -282,4 +283,31 @@ func (db *DB) CountPermissions() (int, error) {
 	var count int
 	err := db.conn.QueryRow(query).Scan(&count)
 	return count, err
+}
+
+// MigrateRoleNames removes "roles/" prefix from existing role names in database
+func (db *DB) MigrateRoleNames() error {
+	// Update roles table
+	updateRolesQuery := `
+		UPDATE roles 
+		SET name = SUBSTR(name, 7)
+		WHERE name LIKE 'roles/%'
+	`
+	_, err := db.conn.Exec(updateRolesQuery)
+	if err != nil {
+		return fmt.Errorf("failed to update role names: %w", err)
+	}
+
+	// Update permissions table
+	updatePermissionsQuery := `
+		UPDATE permissions 
+		SET role = SUBSTR(role, 7)
+		WHERE role LIKE 'roles/%'
+	`
+	_, err = db.conn.Exec(updatePermissionsQuery)
+	if err != nil {
+		return fmt.Errorf("failed to update permission role names: %w", err)
+	}
+
+	return nil
 }
