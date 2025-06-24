@@ -19,6 +19,7 @@ dist:
 
 build: dist ## Build binaries
 	$(call header,Build binaries for all platforms)
+	rm -rf dist/*
 	for platform in "linux/amd64" "darwin/arm64"; do \
 		GOOS=$${platform%/*}; \
 		GOARCH=$${platform#*/}; \
@@ -46,13 +47,7 @@ version: ## Show current version
 
 release: build ## Create GitHub release
 	$(call header,Create GitHub release $(VERSION))
-	gh release create $(VERSION) \
-		--generate-notes \
-		--title "Release $(VERSION)" \
-		--attach dist/gcp-iam-$(VERSION)-linux-amd64 \
-		--attach dist/gcp-iam-$(VERSION)-darwin-arm64 \
-		--attach dist/checksums.txt \
-		--attach dist/checksums.txt.asc
+	gh release create $(VERSION) --generate-notes --title "Release $(VERSION)" dist/*
 
 ###############################################################################
 # GO Tests
