@@ -40,11 +40,6 @@ func TestCLICommands(t *testing.T) {
 			expected: "Found 1 permissions matching 'actions.agent.get':",
 		},
 		{
-			name:     "update command",
-			args:     []string{"gcp-iam", "update"},
-			expected: "Identifying roles needing permission updates",
-		},
-		{
 			name:     "info command",
 			args:     []string{"gcp-iam", "info"},
 			expected: "GCP IAM Configuration",

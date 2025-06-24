@@ -95,8 +95,8 @@ func (u *Updater) fetchRoles(ctx context.Context) ([]db.Role, error) {
 		for _, role := range page.Roles {
 			// Strip "roles/" prefix from role name
 			roleName := role.Name
-			if strings.HasPrefix(roleName, "roles/") {
-				roleName = strings.TrimPrefix(roleName, "roles/")
+			if after, ok := strings.CutPrefix(roleName, "roles/"); ok {
+				roleName = after
 			}
 
 			dbRole := db.Role{

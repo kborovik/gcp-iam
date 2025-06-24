@@ -250,12 +250,6 @@ func TestGetRolesWithPermission(t *testing.T) {
 		t.Fatalf("Failed to insert permission: %v", err)
 	}
 
-	// Link permission to one role
-	err = db.LinkRolePermission("roles/compute.admin", "compute.instances.get")
-	if err != nil {
-		t.Fatalf("Failed to link role permission: %v", err)
-	}
-
 	// Test getting roles with permission
 	rolesWithPermission, err := db.GetRolesWithPermission("compute.instances.get")
 	if err != nil {

@@ -15,7 +15,7 @@ install:
 # GO Tests
 ###############################################################################
 
-test: go-tidy test-config test-db test-update ## Run GO tests
+test: go-tidy test-config test-db test-update test-cli ## Run GO tests
 
 go-tidy:
 	go fmt && go vet && go mod tidy
@@ -31,6 +31,10 @@ test-db:
 test-update:
 	$(call header,Test Module Update)
 	cd update && go test -v
+
+test-cli:
+	$(call header,Test CLI Command)
+	go test -v
 
 ###############################################################################
 # Git Management

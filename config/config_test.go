@@ -70,47 +70,6 @@ cache_dir: %s/cache
 	}
 }
 
-func TestSaveConfig(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	oldHome := os.Getenv("HOME")
-	defer os.Setenv("HOME", oldHome)
-	os.Setenv("HOME", tmpDir)
-
-	cfg := &Config{
-		DatabasePath: filepath.Join(tmpDir, "data", "db.sqlite"),
-		LogLevel:     "debug",
-		CacheDir:     filepath.Join(tmpDir, "cache"),
-	}
-
-	err := cfg.Save()
-	if err != nil {
-		t.Fatalf("Failed to save config: %v", err)
-	}
-
-	configPath := filepath.Join(tmpDir, ".gcp-iam", "config.yaml")
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		t.Error("Config file was not created")
-	}
-
-	loadedCfg, err := Load()
-	if err != nil {
-		t.Fatalf("Failed to load saved config: %v", err)
-	}
-
-	if loadedCfg.DatabasePath != cfg.DatabasePath {
-		t.Errorf("Expected DatabasePath '%s', got '%s'", cfg.DatabasePath, loadedCfg.DatabasePath)
-	}
-
-	if loadedCfg.LogLevel != cfg.LogLevel {
-		t.Errorf("Expected LogLevel '%s', got '%s'", cfg.LogLevel, loadedCfg.LogLevel)
-	}
-
-	if loadedCfg.CacheDir != cfg.CacheDir {
-		t.Errorf("Expected CacheDir '%s', got '%s'", cfg.CacheDir, loadedCfg.CacheDir)
-	}
-}
-
 func TestEnsureDirectories(t *testing.T) {
 	tmpDir := t.TempDir()
 

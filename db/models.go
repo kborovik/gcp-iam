@@ -46,14 +46,6 @@ func (db *DB) InsertPermission(perm *Permission) error {
 	return err
 }
 
-func (db *DB) LinkRolePermission(roleName, permissionName string) error {
-	perm := &Permission{
-		Permission: permissionName,
-		Role:       roleName,
-	}
-	return db.InsertPermission(perm)
-}
-
 func (db *DB) GetRoleByName(name string) (*Role, error) {
 	query := `
 		SELECT name, title, description, stage, deleted, created_at, updated_at
