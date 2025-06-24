@@ -1,122 +1,188 @@
-# Google Cloud IAM Roles and Permissions
+# GCP IAM Explorer
 
-A command-line interface (CLI) tool written in Go that displays Google Cloud IAM predefined roles and their associated permissions. This tool helps developers, system administrators, and security professionals understand and explore Google Cloud's IAM role hierarchy.
+A fast command-line tool for exploring Google Cloud IAM roles and permissions. Discover what permissions are included in roles, find roles that have specific permissions, and understand GCP's IAM structure with ease.
 
-## Features
+## ✨ Features
 
-### Local SQLite Database
+- 🔍 **Search & Explore** - Find roles and permissions with instant search
+- ⚡ **Fast Performance** - Local database for lightning-fast queries
+- 🐚 **TAB Completion** - Fish shell completion for role and permission names
+- 🔄 **Always Current** - Update from live GCP IAM API
+- 💡 **User-Friendly** - Clean output and helpful error messages
 
-- Stores Google Cloud IAM roles and permissions locally
-- Fast querying and searching capabilities
-- Automatic database creation and schema management
-- Uses name-based primary keys for efficient storage
-
-### Configuration Management
-
-- YAML-based configuration file at `~/.gcp-iam/config.yaml`
-- Automatic directory and file creation
-- Default database location: `~/.gcp-iam/database.sqlite`
-- Configurable log levels and cache directory
-
-## Commands
-
-### Role Commands
-
-- `role show <role-name>` - Display role details and permissions
-- `role search <query>` - Search roles by name, title, or description
-- `role compare <role1> <role2>` - Compare permissions between two roles
-
-### Permission Commands
-
-- `permission show <permission-name>` - Show permission details
-- `permission search <query>` - Search permissions by name or description
-
-### Management Commands
-
-- `update` - Update local database with latest Google Cloud IAM data
-- `info` - Display current application configuration
-
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
-# View application configuration
+# Update local database with latest GCP IAM data
+gcp-iam update
+
+# See what's in your database
 gcp-iam info
 
-# Search for compute-related roles
+# Explore roles and permissions
+gcp-iam role search storage
+gcp-iam role show editor
+gcp-iam permission show storage.objects.get
+```
+
+## 📋 Commands
+
+### 🔍 Explore Roles
+
+```bash
+# Search for roles by name or description
 gcp-iam role search compute
+gcp-iam role search "storage admin"
 
-# Show details of a specific role
-gcp-iam role show roles/compute.admin
+# Show detailed information about a role
+gcp-iam role show editor
+gcp-iam role show compute.admin
+gcp-iam role show roles/storage.admin  # also works with full name
+
+# Compare two roles to see permission differences
+gcp-iam role compare editor viewer
 ```
 
-## Architecture
+### 🔐 Explore Permissions
 
-### Software Components
+```bash
+# Search for permissions
+gcp-iam permission search storage
+gcp-iam permission search "compute.instances"
 
-- **CLI Framework**: Built with `github.com/urfave/cli/v3`
-- **Database**: SQLite with pure Go driver (`modernc.org/sqlite`)
-- **Configuration**: YAML-based config with `gopkg.in/yaml.v3`
-- **Testing**: Comprehensive test coverage for all components
-
-### Database Schema
-
-```sql
--- Roles table (name as primary key)
-CREATE TABLE roles (
-    name TEXT PRIMARY KEY,
-    title TEXT,
-    description TEXT,
-    stage TEXT,
-    deleted BOOLEAN DEFAULT FALSE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- Permissions table (name as primary key)
-CREATE TABLE permissions (
-    name TEXT PRIMARY KEY,
-    title TEXT,
-    description TEXT,
-    stage TEXT,
-    api_disabled BOOLEAN DEFAULT FALSE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- Many-to-many relationship
-CREATE TABLE role_permissions (
-    role_name TEXT,
-    permission_name TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (role_name, permission_name),
-    FOREIGN KEY (role_name) REFERENCES roles(name) ON DELETE CASCADE,
-    FOREIGN KEY (permission_name) REFERENCES permissions(name) ON DELETE CASCADE
-);
+# See which roles include a specific permission
+gcp-iam permission show storage.objects.get
+gcp-iam permission show compute.instances.create
 ```
 
-### Project Structure
+### 🔄 Data Management
 
-```
-├── config/          # Configuration management
-│   ├── config.go    # Config loading and defaults
-│   └── config_test.go
-├── db/              # Database layer
-│   ├── database.go  # Connection and schema
-│   ├── models.go    # Data models and CRUD operations
-│   └── database_test.go
-├── main.go          # CLI application entry point
-├── main_test.go     # CLI functionality tests
-└── go.mod           # Go module dependencies
+```bash
+# Update your local database with latest GCP IAM data
+gcp-iam update
+
+# View database statistics and configuration
+gcp-iam info
 ```
 
-## Configuration
+## 💡 Example Workflows
 
-The application uses a YAML configuration file located at `~/.gcp-iam/config.yaml`:
+### Find the right role for storage access
 
-```yaml
-log_level: info
-database_path: /home/user/.gcp-iam/database.sqlite
-cache_dir: /home/user/.gcp-iam/cache
+```bash
+# Find storage-related roles
+$ gcp-iam role search storage
+
+Found 15 roles matching 'storage':
+  storage.admin - Storage Admin
+  storage.objectAdmin - Storage Object Admin
+  storage.objectCreator - Storage Object Creator
+  storage.objectViewer - Storage Object Viewer
+  ...
+
+# Check what the Storage Object Admin can do
+$ gcp-iam role show storage.objectAdmin
+
+Role: storage.objectAdmin
+Title: Storage Object Admin
+Description: Full control of GCS objects
+Stage: GA
+Permissions (12):
+  - storage.objects.create
+  - storage.objects.delete
+  - storage.objects.get
+  - storage.objects.list
+  - storage.objects.update
+  ...
 ```
 
-All paths and directories are created automatically on first run.
+### Find which roles can create compute instances
+
+```bash
+# Search for the permission
+$ gcp-iam permission show compute.instances.create
+
+Permission: compute.instances.create
+Roles with this permission (8):
+  compute.admin - Compute Admin
+  compute.instanceAdmin - Compute Instance Admin
+  editor - Editor
+  owner - Owner
+  ...
+```
+
+### Compare similar roles
+
+```bash
+# See the difference between editor and viewer
+$ gcp-iam role compare editor viewer
+
+Permissions only in 'editor': 2,847 permissions
+Permissions only in 'viewer': 0 permissions
+Common permissions: 7,189 permissions
+
+# Editor has all viewer permissions plus 2,847 additional permissions
+```
+
+## 🛠️ Setup TAB Completion (Fish Shell)
+
+Enable instant TAB completion for role and permission names:
+
+```bash
+# Copy completion script
+cp tools/gcp-iam.fish ~/.config/fish/completions/
+
+# Now you can TAB complete!
+gcp-iam role show ed<TAB>           # completes to 'editor'
+gcp-iam permission show storage.<TAB>  # shows all storage.* permissions
+```
+
+## 🔐 Authentication
+
+To update data from GCP, you need to authenticate:
+
+```bash
+# Authenticate with Google Cloud
+gcloud auth login --update-adc
+
+# Then update your local database
+gcp-iam update
+```
+
+If you see authentication errors, the tool will guide you with the exact command to run.
+
+## 📊 What's Included
+
+- **1,892 IAM roles** - All predefined GCP roles
+- **11,530 permissions** - Every GCP permission available
+- **Fast search** - Find roles/permissions in milliseconds
+- **Local storage** - No API calls needed for browsing
+- **Auto-updates** - Keep data current with GCP changes
+
+## 🆘 Common Use Cases
+
+**Security Auditing**: Understand what permissions a role actually grants
+```bash
+gcp-iam role show iam.serviceAccountUser
+```
+
+**Least Privilege**: Find the minimal role for specific permissions
+```bash
+gcp-iam permission show pubsub.topics.publish
+```
+
+**Role Discovery**: Find roles for specific GCP services
+```bash
+gcp-iam role search kubernetes
+gcp-iam role search bigquery
+```
+
+**Permission Research**: Understand GCP permission structure
+```bash
+gcp-iam permission search "instances.create"
+gcp-iam permission search "buckets"
+```
+
+---
+
+**Note**: This tool reads GCP IAM data but never modifies your actual GCP resources or permissions. It's safe for exploration and auditing.
