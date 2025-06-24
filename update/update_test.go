@@ -1,9 +1,7 @@
 package update
 
 import (
-	"context"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/kborovik/gcp-iam/db"
@@ -39,26 +37,29 @@ func TestFetchGCPIAMRoles(t *testing.T) {
 	}
 	defer database.Close()
 
-	updater := New(database)
+	_ = New(database)
 
 	// This test requires valid GCP credentials and network access
 	// Skip in CI/CD environments or when credentials are not available
 	t.Skip("Skipping integration test - requires GCP credentials")
 
-	ctx := context.Background()
-	roles, err := updater.fetchRoles(ctx)
-	if err != nil {
-		t.Fatalf("Failed to fetch GCP IAM roles: %v", err)
-	}
+	// Test code would go here but is skipped
+	/*
+		ctx := context.Background()
+		roles, err := updater.fetchRoles(ctx)
+		if err != nil {
+			t.Fatalf("Failed to fetch GCP IAM roles: %v", err)
+		}
 
-	if len(roles) == 0 {
-		t.Fatal("Expected at least one role, got none")
-	}
+		if len(roles) == 0 {
+			t.Fatal("Expected at least one role, got none")
+		}
 
-	// Verify first role has required fields
-	if roles[0].Name == "" {
-		t.Error("Expected role name to be non-empty")
-	}
+		// Verify first role has required fields
+		if roles[0].Name == "" {
+			t.Error("Expected role name to be non-empty")
+		}
+	*/
 }
 
 func TestUpdateDatabase(t *testing.T) {
@@ -111,34 +112,37 @@ func TestFetchRolePermissions(t *testing.T) {
 	}
 	defer database.Close()
 
-	updater := New(database)
+	_ = New(database)
 
 	// This test requires valid GCP credentials and network access
 	// Skip in CI/CD environments or when credentials are not available
 	t.Skip("Skipping integration test - requires GCP credentials")
 
-	ctx := context.Background()
-	permissions, err := updater.fetchPermissions(ctx, "roles/storage.admin")
-	if err != nil {
-		t.Fatalf("Failed to fetch role permissions: %v", err)
-	}
-
-	if len(permissions) == 0 {
-		t.Fatal("Expected at least one permission for storage.admin role")
-	}
-
-	// Check that we get expected storage permissions
-	hasStoragePermission := false
-	for _, perm := range permissions {
-		if strings.Contains(perm, "storage") {
-			hasStoragePermission = true
-			break
+	// Test code would go here but is skipped
+	/*
+		ctx := context.Background()
+		permissions, err := updater.fetchPermissions(ctx, "roles/storage.admin")
+		if err != nil {
+			t.Fatalf("Failed to fetch role permissions: %v", err)
 		}
-	}
 
-	if !hasStoragePermission {
-		t.Error("Expected storage.admin role to have storage-related permissions")
-	}
+		if len(permissions) == 0 {
+			t.Fatal("Expected at least one permission for storage.admin role")
+		}
+
+		// Check that we get expected storage permissions
+		hasStoragePermission := false
+		for _, perm := range permissions {
+			if strings.Contains(perm, "storage") {
+				hasStoragePermission = true
+				break
+			}
+		}
+
+		if !hasStoragePermission {
+			t.Error("Expected storage.admin role to have storage-related permissions")
+		}
+	*/
 }
 
 func TestUpdatePermissions(t *testing.T) {
@@ -151,7 +155,7 @@ func TestUpdatePermissions(t *testing.T) {
 	}
 	defer database.Close()
 
-	updater := New(database)
+	_ = New(database)
 
 	// This test requires valid GCP credentials and network access
 	// Skip in CI/CD environments or when credentials are not available
@@ -170,19 +174,22 @@ func TestUpdatePermissions(t *testing.T) {
 		t.Fatalf("Failed to insert test role: %v", err)
 	}
 
-	ctx := context.Background()
-	err = updater.UpdatePermissions(ctx, "roles/storage.admin")
-	if err != nil {
-		t.Fatalf("Failed to update role permissions: %v", err)
-	}
+	// Test code would go here but is skipped
+	/*
+		ctx := context.Background()
+		err = updater.UpdatePermissions(ctx, "roles/storage.admin")
+		if err != nil {
+			t.Fatalf("Failed to update role permissions: %v", err)
+		}
 
-	// Verify permissions were stored in database
-	permissions, err := database.GetRolePermissions("roles/storage.admin")
-	if err != nil {
-		t.Fatalf("Failed to get role permissions from database: %v", err)
-	}
+		// Verify permissions were stored in database
+		permissions, err := database.GetRolePermissions("roles/storage.admin")
+		if err != nil {
+			t.Fatalf("Failed to get role permissions from database: %v", err)
+		}
 
-	if len(permissions) == 0 {
-		t.Fatal("Expected role permissions to be stored in database")
-	}
+		if len(permissions) == 0 {
+			t.Fatal("Expected role permissions to be stored in database")
+		}
+	*/
 }

@@ -97,7 +97,6 @@ func completePermissionNames(cmd *cli.Command) {
 var cmd = &cli.Command{
 	Name:                  "gcp-iam",
 	Usage:                 "Query Google Cloud IAM Roles and Permissions",
-	Version:               version.GetVersion(),
 	Suggest:               true,
 	EnableShellCompletion: true,
 	HideHelpCommand:       true,
@@ -130,15 +129,20 @@ var cmd = &cli.Command{
 			},
 			Commands: []*cli.Command{
 				{
-					Name:  "show",
-					Usage: "Show IAM role permissions",
+					Name:      "show",
+					Usage:     "Show IAM role permissions",
+					ArgsUsage: "<role-name>",
+					Description: "Display detailed information about a specific IAM role including its permissions.\n\n" +
+						"Examples:\n" +
+						"  gcp-iam role show viewer\n" +
+						"  gcp-iam role show compute.instanceAdmin.v1",
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
 						completeRoleNames(cmd)
 					},
 					Action: func(ctx context.Context, cmd *cli.Command) error {
 						roleName := cmd.Args().First()
 						if roleName == "" {
-							return fmt.Errorf("role name is required")
+							return cli.ShowSubcommandHelp(cmd)
 						}
 
 						// Normalize role name (strip roles/ prefix if present)
@@ -184,15 +188,21 @@ var cmd = &cli.Command{
 					},
 				},
 				{
-					Name:  "search",
-					Usage: "Search IAM roles",
+					Name:      "search",
+					Usage:     "Search IAM roles",
+					ArgsUsage: "<search-query>",
+					Description: "Search for IAM roles by name or title using a query string.\n\n" +
+						"Examples:\n" +
+						"  gcp-iam role search storage\n" +
+						"  gcp-iam role search admin\n" +
+						"  gcp-iam role search compute",
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
 						completeRoleNames(cmd)
 					},
 					Action: func(ctx context.Context, cmd *cli.Command) error {
 						query := cmd.Args().First()
 						if query == "" {
-							return fmt.Errorf("search query is required")
+							return cli.ShowSubcommandHelp(cmd)
 						}
 
 						cfg, err := config.Load()
@@ -220,15 +230,21 @@ var cmd = &cli.Command{
 					},
 				},
 				{
-					Name:  "compare",
-					Usage: "Compare permissions of 2 IAM roles",
+					Name:      "compare",
+					Usage:     "Compare permissions of 2 IAM roles",
+					ArgsUsage: "<role1> <role2>",
+					Description: "Compare the permissions between two IAM roles, showing common permissions and differences.\n\n" +
+						"Examples:\n" +
+						"  gcp-iam role compare viewer editor\n" +
+						"  gcp-iam role compare storage.admin storage.objectAdmin\n" +
+						"  gcp-iam role compare roles/compute.admin compute.instanceAdmin",
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
 						completeRoleNames(cmd)
 					},
 					Action: func(ctx context.Context, cmd *cli.Command) error {
 						args := cmd.Args().Slice()
 						if len(args) < 2 {
-							return fmt.Errorf("two role names are required for comparison")
+							return cli.ShowSubcommandHelp(cmd)
 						}
 
 						role1Name := normalizeRoleName(args[0])
@@ -341,15 +357,21 @@ var cmd = &cli.Command{
 			},
 			Commands: []*cli.Command{
 				{
-					Name:  "show",
-					Usage: "Show IAM roles with permission",
+					Name:      "show",
+					Usage:     "Show IAM roles with permission",
+					ArgsUsage: "<permission-name>",
+					Description: "Display all IAM roles that include a specific permission.\n\n" +
+						"Examples:\n" +
+						"  gcp-iam permission show storage.objects.get\n" +
+						"  gcp-iam permission show compute.instances.create\n" +
+						"  gcp-iam permission show iam.serviceAccounts.actAs",
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
 						completePermissionNames(cmd)
 					},
 					Action: func(ctx context.Context, cmd *cli.Command) error {
 						permissionName := cmd.Args().First()
 						if permissionName == "" {
-							return fmt.Errorf("permission name is required")
+							return cli.ShowSubcommandHelp(cmd)
 						}
 
 						cfg, err := config.Load()
@@ -389,15 +411,21 @@ var cmd = &cli.Command{
 					},
 				},
 				{
-					Name:  "search",
-					Usage: "Search IAM permissions",
+					Name:      "search",
+					Usage:     "Search IAM permissions",
+					ArgsUsage: "<search-query>",
+					Description: "Search for IAM permissions by name using a query string.\n\n" +
+						"Examples:\n" +
+						"  gcp-iam permission search storage\n" +
+						"  gcp-iam permission search create\n" +
+						"  gcp-iam permission search compute.instances",
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
 						completePermissionNames(cmd)
 					},
 					Action: func(ctx context.Context, cmd *cli.Command) error {
 						query := cmd.Args().First()
 						if query == "" {
-							return fmt.Errorf("search query is required")
+							return cli.ShowSubcommandHelp(cmd)
 						}
 
 						cfg, err := config.Load()
@@ -429,6 +457,13 @@ var cmd = &cli.Command{
 		{
 			Name:  "update",
 			Usage: "Update IAM roles and permissions",
+			Description: "Fetch the latest IAM roles and permissions from Google Cloud Platform and update the local database.\n\n" +
+				"This command requires authentication with GCP and will:\n" +
+				"  • Update all IAM role definitions\n" +
+				"  • Update permissions for roles that have changed\n" +
+				"  • Skip roles that are already up-to-date\n\n" +
+				"Examples:\n" +
+				"  gcp-iam update",
 			Action: func(ctx context.Context, cmd *cli.Command) error {
 				cfg, err := config.Load()
 				if err != nil {
@@ -535,6 +570,13 @@ var cmd = &cli.Command{
 		{
 			Name:  "info",
 			Usage: "Show application configuration",
+			Description: "Display current application configuration including database statistics and file paths.\n\n" +
+				"Shows:\n" +
+				"  • Number of roles and permissions in database\n" +
+				"  • Configuration file location\n" +
+				"  • Database file location\n\n" +
+				"Examples:\n" +
+				"  gcp-iam info",
 			Action: func(ctx context.Context, cmd *cli.Command) error {
 				cfg, err := config.Load()
 				if err != nil {
@@ -570,6 +612,13 @@ var cmd = &cli.Command{
 		{
 			Name:  "version",
 			Usage: "Show version information",
+			Description: "Display version information including build details.\n\n" +
+				"Shows:\n" +
+				"  • Application version\n" +
+				"  • Git commit hash\n" +
+				"  • Build date\n\n" +
+				"Examples:\n" +
+				"  gcp-iam version",
 			Action: func(ctx context.Context, cmd *cli.Command) error {
 				buildInfo := version.GetBuildInfo()
 				fmt.Printf("Version:    %s\n", buildInfo.Version)

@@ -111,7 +111,7 @@ func (u *Updater) fetchRoles(ctx context.Context) ([]db.Role, error) {
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("Authentication failed accessing Google Cloud IAM API.\nTo fix authentication issues, run: gcloud auth login --update-adc")
+		return nil, fmt.Errorf("authentication failed accessing Google Cloud IAM API.\nTo fix authentication issues, run: gcloud auth login --update-adc")
 	}
 
 	return roles, nil
@@ -121,7 +121,7 @@ func (u *Updater) fetchRoles(ctx context.Context) ([]db.Role, error) {
 func (u *Updater) fetchPermissions(ctx context.Context, roleName string) ([]string, error) {
 	service, err := iam.NewService(ctx, option.WithScopes(iam.CloudPlatformScope))
 	if err != nil {
-		return nil, fmt.Errorf("Authentication failed accessing Google Cloud IAM API.\nTo fix authentication issues, run: gcloud auth login --update-adc")
+		return nil, fmt.Errorf("authentication failed accessing Google Cloud IAM API.\nTo fix authentication issues, run: gcloud auth login --update-adc")
 	}
 
 	// Add "roles/" prefix for API call if not present
@@ -132,7 +132,7 @@ func (u *Updater) fetchPermissions(ctx context.Context, roleName string) ([]stri
 
 	role, err := service.Roles.Get(apiRoleName).Context(ctx).Do()
 	if err != nil {
-		return nil, fmt.Errorf("Authentication failed accessing Google Cloud IAM API for role %s.\nTo fix authentication issues, run: gcloud auth login --update-adc", roleName)
+		return nil, fmt.Errorf("authentication failed accessing Google Cloud IAM API for role %s.\nTo fix authentication issues, run: gcloud auth login --update-adc", roleName)
 	}
 
 	return role.IncludedPermissions, nil

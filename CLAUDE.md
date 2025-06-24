@@ -15,5 +15,5 @@
 # Workflow
 
 - MUST run `go fmt`, `go vet`, `go mod tidy`, after each edit to ensure code consistent formatting and quality and fix any linting issues
-- MUST execute `staticcheck` as the final step in your implementation plan and fix any static analysis issues
+- MUST execute `staticcheck ./...` as the final step in your implementation plan and fix any static analysis errors or warnings
 - MUST execute `go test -v` for each package as the final step in your implementation plan and fix any test failures

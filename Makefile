@@ -53,10 +53,15 @@ release: build ## Create GitHub release
 # GO Tests
 ###############################################################################
 
-test: go-tidy test-config test-db test-update test-cli ## Test all modules
+test: go-tidy test-config test-db test-update test-cli go-static ## Test all modules
 
 go-tidy:
+	$(call header,Golang Tidy)
 	go fmt && go vet && go mod tidy
+
+go-static:
+	$(call header,Static Analysis)
+	staticcheck ./...
 
 test-config:
 	$(call header,Test Module Config)
