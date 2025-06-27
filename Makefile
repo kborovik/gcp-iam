@@ -1,115 +1,76 @@
 .EXPORT_ALL_VARIABLES:
 .ONESHELL:
 .SILENT:
+.PHONY: help build test clean fmt vet lint deps check run install dev
 
 MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-GIT_COMMIT = $(shell git rev-parse HEAD 2>/dev/null || echo "unknown")
-BUILD_DATE = $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+# Get package name from go.mod
+PACKAGE_NAME := $(shell go list -m | awk -F'/' '{print $$NF}')
 
-LDFLAGS = -ldflags "-X github.com/kborovik/gcp-iam/version.Version=$(VERSION) \
-                    -X github.com/kborovik/gcp-iam/version.GitCommit=$(GIT_COMMIT) \
-                    -X github.com/kborovik/gcp-iam/version.BuildDate=$(BUILD_DATE)"
+help: deps
+	echo "$(PACKAGE_NAME) - GCP IAM management tool"
+	echo ""
+	echo "Available targets:"
+	echo "  check    - Run all checks (fmt, vet, lint, test)"
+	echo "  install  - Install binary to GOPATH/bin"
+	echo "  build    - Build binary in dist/"
+	echo "  release  - Create GitHub release"
 
-default: help
+# Set dependencies
+deps:
+	mkdir -p dist/
+	command -v staticcheck >/dev/null 2>&1 || go install honnef.co/go/tools/cmd/staticcheck@latest
+	command -v modernize >/dev/null 2>&1 || go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest
+	go mod download
+	go mod tidy
 
-dist:
-	mkdir -p $(@)
+# Run all checks
+check: fmt vet lint test
+	echo "All checks passed!"
 
-build: dist ## Build binaries
-	$(call header,Build binaries for all platforms)
-	rm -rf dist/*
-	for platform in "linux/amd64" "darwin/arm64"; do \
-		GOOS=$${platform%/*}; \
-		GOARCH=$${platform#*/}; \
-		output_name="gcp-iam-$(VERSION)-$$GOOS-$$GOARCH"; \
-		echo "Building for $$GOOS/$$GOARCH..."; \
-		CGO_ENABLED=0 GOOS=$$GOOS GOARCH=$$GOARCH go build \
-			-ldflags "-w -s \
-				-X github.com/kborovik/gcp-iam/version.Version=$(VERSION) \
-				-X github.com/kborovik/gcp-iam/version.GitCommit=$(GIT_COMMIT) \
-				-X github.com/kborovik/gcp-iam/version.BuildDate=$(BUILD_DATE)" \
-			-o "dist/$$output_name" .; \
-	done
-	cd dist
-	sha256sum gcp-iam-$(VERSION)-* > checksums.txt
+# Format code
+fmt:
+	go fmt ./...
+
+# Run go vet
+vet:
+	go vet ./...
+
+# Run staticcheck linter
+lint:
+	staticcheck ./...
+	modernize -category=efaceany -test ./...
+
+# Run modernize linter
+modernize:
+	modernize -category=efaceany -fix -test ./...
+
+# Run tests
+test: deps
+	go test -v ./...
+
+LDFLAGS := -ldflags="-w -s"
+
+# Install binary to GOPATH/bin
+install:
+	go install $(LDFLAGS) .
+	cp $(PACKAGE_NAME).fish ~/.config/fish/completions/
+
+# Build (optimized)
+build: clean deps check
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o dist/$(PACKAGE_NAME)-linux-amd64 .
+	cd dist/
+	sha256sum $(PACKAGE_NAME)-* > checksums.txt
 	gpg --default-key E4AFCA7FBB19FC029D519A524AEBB5178D5E96C1 --detach-sign --armor checksums.txt
+	echo "Release binaries built successfully!"
 
-install: ## Install binary
-	$(call header,Install binary)
-	go install $(LDFLAGS)
-	cp gcp-iam.fish ~/.config/fish/completions/
-
-.PHONY: version
-version: ## Show current version
-	echo $(VERSION)
-
-release: build ## Create GitHub release
-	$(call header,Create GitHub release $(VERSION))
+release: build
+	$(eval VERSION := $(shell go run . --version | cut -f3 -d' '))
 	gh release create $(VERSION) --generate-notes --title "Release $(VERSION)" dist/*
 
-###############################################################################
-# GO Tests
-###############################################################################
-
-test: go-tidy test-config test-db test-update test-cli go-static ## Test all modules
-
-go-tidy:
-	$(call header,Golang Tidy)
-	go fmt && go vet && go mod tidy
-
-go-static:
-	$(call header,Static Analysis)
-	staticcheck ./...
-
-test-config:
-	$(call header,Test Module Config)
-	cd config && go test -v
-
-test-db:
-	$(call header,Test Module Database)
-	cd db && go test -v
-
-test-update:
-	$(call header,Test Module Update)
-	cd update && go test -v
-
-test-cli:
-	$(call header,Test CLI Command)
-	go test -v
-
-###############################################################################
-# Colors and Headers
-###############################################################################
-
-TERM := xterm-256color
-
-black := $$(tput setaf 0)
-red := $$(tput setaf 1)
-green := $$(tput setaf 2)
-yellow := $$(tput setaf 3)
-blue := $$(tput setaf 4)
-magenta := $$(tput setaf 5)
-cyan := $$(tput setaf 6)
-white := $$(tput setaf 7)
-reset := $$(tput sgr0)
-
-define header
-echo "$(blue)==> $(1) <==$(reset)"
-endef
-
-define var
-echo "$(magenta)$(1)$(white): $(yellow)$(2)$(reset)"
-endef
-
-help:
-	echo "$(blue)Usage: $(green)make [recipe]$(reset)"
-	echo "$(blue)Recipes:$(reset)"
-	awk 'BEGIN {FS = ":.*?## "; sort_cmd = "sort"} /^[a-zA-Z0-9_-]+:.*?## / \
-	{ printf "  \033[33m%-15s\033[0m %s\n", $$1, $$2 | sort_cmd; } \
-	END {close(sort_cmd)}' $(MAKEFILE_LIST)
-
-prompt:
-	printf "$(magenta)Continue $(white)? $(cyan)(yes/no)$(reset)"
-	read -p ": " answer && [ "$$answer" = "yes" ] || exit 127
+# Clean build artifacts
+clean:
+	rm -rf dist/
+	rm -f $(PACKAGE_NAME)
+	go clean

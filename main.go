@@ -10,9 +10,10 @@ import (
 	"github.com/kborovik/gcp-iam/config"
 	"github.com/kborovik/gcp-iam/db"
 	"github.com/kborovik/gcp-iam/update"
-	"github.com/kborovik/gcp-iam/version"
 	"github.com/urfave/cli/v3"
 )
+
+const Version = "1.0.2"
 
 // normalizeRoleName strips the "roles/" prefix if present
 func normalizeRoleName(roleName string) string {
@@ -97,6 +98,7 @@ func completePermissionNames(cmd *cli.Command) {
 var cmd = &cli.Command{
 	Name:                  "gcp-iam",
 	Usage:                 "Query Google Cloud IAM Roles and Permissions",
+	Version:               Version,
 	Suggest:               true,
 	EnableShellCompletion: true,
 	HideHelpCommand:       true,
@@ -606,24 +608,6 @@ var cmd = &cli.Command{
 				fmt.Printf("  ConfigFile:   %s\n", configPath)
 				fmt.Printf("  DatabasePath: %s\n", cfg.DatabasePath)
 
-				return nil
-			},
-		},
-		{
-			Name:  "version",
-			Usage: "Show version information",
-			Description: "Display version information including build details.\n\n" +
-				"Shows:\n" +
-				"  • Application version\n" +
-				"  • Git commit hash\n" +
-				"  • Build date\n\n" +
-				"Examples:\n" +
-				"  gcp-iam version",
-			Action: func(ctx context.Context, cmd *cli.Command) error {
-				buildInfo := version.GetBuildInfo()
-				fmt.Printf("Version:    %s\n", buildInfo.Version)
-				fmt.Printf("Git Commit: %s\n", buildInfo.GitCommit)
-				fmt.Printf("Build Date: %s\n", buildInfo.BuildDate)
 				return nil
 			},
 		},

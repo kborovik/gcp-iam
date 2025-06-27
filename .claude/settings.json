@@ -11,8 +11,13 @@
       "Bash(go mod:*)",
       "Bash(go run:*)",
       "Bash(go test:*)",
+      "Bash(go test:*)",
       "Bash(go vet:*)",
-      "Bash(rg:*)"
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(make:*)",
+      "Bash(rg:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": []
   },
