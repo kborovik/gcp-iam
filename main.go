@@ -95,6 +95,42 @@ func completePermissionNames(cmd *cli.Command) {
 	}
 }
 
+// completeServiceNames provides completion for service names
+func completeServiceNames(cmd *cli.Command) {
+	// Check if this is being called for completion
+	if os.Getenv("COMP_LINE") == "" {
+		return
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return
+	}
+
+	database, err := db.New(cfg.DatabasePath)
+	if err != nil {
+		return
+	}
+	defer database.Close()
+
+	serviceNames, err := database.GetServiceNames()
+	if err != nil {
+		return
+	}
+
+	// Filter based on current input if available
+	currentArg := ""
+	if args := cmd.Args(); args.Len() > 0 {
+		currentArg = args.First()
+	}
+
+	for _, name := range serviceNames {
+		if currentArg == "" || strings.HasPrefix(name, currentArg) {
+			fmt.Println(name)
+		}
+	}
+}
+
 var cmd = &cli.Command{
 	Name:                  "gcp-iam",
 	Usage:                 "Query Google Cloud IAM Roles and Permissions",
@@ -457,15 +493,131 @@ var cmd = &cli.Command{
 			},
 		},
 		{
+			Name:  "service",
+			Usage: "Query Google Cloud Services",
+			CommandNotFound: func(ctx context.Context, cmd *cli.Command, command string) {
+				cli.ShowAppHelp(cmd)
+			},
+			Commands: []*cli.Command{
+				{
+					Name:      "show",
+					Usage:     "Show service details",
+					ArgsUsage: "<service-name>",
+					Description: "Display detailed information about a specific Google Cloud service.\n\n" +
+						"Examples:\n" +
+						"  gcp-iam service show storage.googleapis.com\n" +
+						"  gcp-iam service show compute.googleapis.com",
+					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
+						completeServiceNames(cmd)
+					},
+					Action: func(ctx context.Context, cmd *cli.Command) error {
+						serviceName := cmd.Args().First()
+						if serviceName == "" {
+							return cli.ShowSubcommandHelp(cmd)
+						}
+
+						cfg, err := config.Load()
+						if err != nil {
+							return fmt.Errorf("failed to load config: %w", err)
+						}
+
+						database, err := db.New(cfg.DatabasePath)
+						if err != nil {
+							return fmt.Errorf("failed to open database: %w", err)
+						}
+						defer database.Close()
+
+						service, err := database.GetServiceByName(serviceName)
+						if err != nil {
+							return fmt.Errorf("failed to get service: %w", err)
+						}
+
+						if service == nil {
+							fmt.Printf("Service '%s' not found\n", serviceName)
+							return nil
+						}
+
+						fmt.Printf("Service: %s\n", service.Name)
+						fmt.Printf("Title: %s\n", service.Title)
+						if service.Description != "" && service.Description != service.Title {
+							fmt.Printf("Description: %s\n", service.Description)
+						}
+						fmt.Printf("Created: %s\n", service.CreatedAt.Format("2006-01-02 15:04:05"))
+						fmt.Printf("Updated: %s\n", service.UpdatedAt.Format("2006-01-02 15:04:05"))
+
+						return nil
+					},
+				},
+				{
+					Name:      "search",
+					Usage:     "Search for services",
+					ArgsUsage: "<query>",
+					Description: "Search for Google Cloud services by name or title.\n\n" +
+						"The search is case-insensitive and matches partial strings in:\n" +
+						"  • Service name (e.g., 'storage.googleapis.com')\n" +
+						"  • Service title (e.g., 'Cloud Storage')\n\n" +
+						"Examples:\n" +
+						"  gcp-iam service search storage\n" +
+						"  gcp-iam service search compute\n" +
+						"  gcp-iam service search 'cloud sql'",
+					Action: func(ctx context.Context, cmd *cli.Command) error {
+						query := strings.Join(cmd.Args().Slice(), " ")
+						if query == "" {
+							return cli.ShowSubcommandHelp(cmd)
+						}
+
+						cfg, err := config.Load()
+						if err != nil {
+							return fmt.Errorf("failed to load config: %w", err)
+						}
+
+						database, err := db.New(cfg.DatabasePath)
+						if err != nil {
+							return fmt.Errorf("failed to open database: %w", err)
+						}
+						defer database.Close()
+
+						services, err := database.SearchServices(query)
+						if err != nil {
+							return fmt.Errorf("failed to search services: %w", err)
+						}
+
+						if len(services) == 0 {
+							fmt.Printf("No services found matching '%s'\n", query)
+							return nil
+						}
+
+						fmt.Printf("Found %d services matching '%s':\n\n", len(services), query)
+						for _, service := range services {
+							fmt.Printf("%-50s %s\n", service.Name, service.Title)
+						}
+
+						return nil
+					},
+				},
+			},
+		},
+		{
 			Name:  "update",
-			Usage: "Update IAM roles and permissions",
-			Description: "Fetch the latest IAM roles and permissions from Google Cloud Platform and update the local database.\n\n" +
-				"This command requires authentication with GCP and will:\n" +
-				"  • Update all IAM role definitions\n" +
-				"  • Update permissions for roles that have changed\n" +
-				"  • Skip roles that are already up-to-date\n\n" +
+			Usage: "Update IAM roles, permissions, and services",
+			Description: "Fetch the latest data from Google Cloud Platform and update the local database.\n\n" +
+				"By default, updates both roles and permissions. Use flags to update specific resources:\n" +
+				"  --roles    Only update IAM roles and permissions\n" +
+				"  --services Only update Google Cloud services\n\n" +
 				"Examples:\n" +
-				"  gcp-iam update",
+				"  gcp-iam update           # Update both roles and services\n" +
+				"  gcp-iam update --roles   # Update only roles and permissions\n" +
+				"  gcp-iam update --services # Update only services",
+			Flags: []cli.Flag{
+				&cli.BoolFlag{
+					Name:  "roles",
+					Usage: "Only update IAM roles and permissions",
+				},
+				&cli.BoolFlag{
+					Name:  "services",
+					Usage: "Only update Google Cloud services",
+				},
+			},
 			Action: func(ctx context.Context, cmd *cli.Command) error {
 				cfg, err := config.Load()
 				if err != nil {
@@ -480,38 +632,59 @@ var cmd = &cli.Command{
 
 				updater := update.New(database)
 
-				// First update all roles
-				err = updater.UpdateRoles(ctx)
-				if err != nil {
-					// Check if it's an authentication error and return it directly
-					if strings.Contains(err.Error(), "Authentication failed accessing Google Cloud IAM API") {
-						return err
+				// Determine what to update based on flags
+				updateRoles := cmd.Bool("roles")
+				updateServices := cmd.Bool("services")
+
+				// If no flags specified, update both
+				if !updateRoles && !updateServices {
+					updateRoles = true
+					updateServices = true
+				}
+
+				// Update roles and permissions if requested
+				if updateRoles {
+					// First update all roles
+					err = updater.UpdateRoles(ctx)
+					if err != nil {
+						// Check if it's an authentication error and return it directly
+						if strings.Contains(err.Error(), "Authentication failed accessing Google Cloud IAM API") {
+							return err
+						}
+						return fmt.Errorf("failed to update roles: %w", err)
 					}
-					return fmt.Errorf("failed to update roles: %w", err)
-				}
 
-				// Then update permissions only for roles that need it
-				fmt.Println("Identifying roles needing permission updates...")
-				rolesToUpdate, err := database.GetRolesNeedingPermissionUpdate()
-				if err != nil {
-					return fmt.Errorf("failed to get roles needing updates: %w", err)
-				}
+					// Then update permissions only for roles that need it
+					fmt.Println("Identifying roles needing permission updates...")
+					rolesToUpdate, err := database.GetRolesNeedingPermissionUpdate()
+					if err != nil {
+						return fmt.Errorf("failed to get roles needing updates: %w", err)
+					}
 
-				if len(rolesToUpdate) == 0 {
-					fmt.Println("No roles need permission updates - all roles are up to date")
-				} else {
-					fmt.Printf("Updating permissions for %d roles that need updates...\n", len(rolesToUpdate))
-					for i, role := range rolesToUpdate {
-						fmt.Printf("Updating permissions for role %d/%d: %s\n", i+1, len(rolesToUpdate), role.Name)
-						err = updater.UpdatePermissions(ctx, role.Name)
-						if err != nil {
-							fmt.Printf("Warning: failed to update permissions for role %s: %v\n", role.Name, err)
-							// Continue with other roles even if one fails
+					if len(rolesToUpdate) == 0 {
+						fmt.Println("No roles need permission updates - all roles are up to date")
+					} else {
+						fmt.Printf("Updating permissions for %d roles that need updates...\n", len(rolesToUpdate))
+						for i, role := range rolesToUpdate {
+							fmt.Printf("Updating permissions for role %d/%d: %s\n", i+1, len(rolesToUpdate), role.Name)
+							err = updater.UpdatePermissions(ctx, role.Name)
+							if err != nil {
+								fmt.Printf("Warning: failed to update permissions for role %s: %v\n", role.Name, err)
+								// Continue with other roles even if one fails
+							}
 						}
 					}
 				}
 
-				fmt.Println("Successfully updated IAM roles and permissions")
+				// Update services if requested
+				if updateServices {
+					err = updater.UpdateServices(ctx)
+					if err != nil {
+						return fmt.Errorf("failed to update services: %w", err)
+					}
+				}
+
+				fmt.Println("Update completed successfully")
 				return nil
 			},
 		},
@@ -570,11 +743,38 @@ var cmd = &cli.Command{
 			},
 		},
 		{
+			Name:   "complete-services",
+			Usage:  "List all service names for shell completion",
+			Hidden: true,
+			Action: func(ctx context.Context, cmd *cli.Command) error {
+				cfg, err := config.Load()
+				if err != nil {
+					return err
+				}
+
+				database, err := db.New(cfg.DatabasePath)
+				if err != nil {
+					return err
+				}
+				defer database.Close()
+
+				serviceNames, err := database.GetServiceNames()
+				if err != nil {
+					return err
+				}
+
+				for _, name := range serviceNames {
+					fmt.Println(name)
+				}
+				return nil
+			},
+		},
+		{
 			Name:  "info",
 			Usage: "Show application configuration",
 			Description: "Display current application configuration including database statistics and file paths.\n\n" +
 				"Shows:\n" +
-				"  • Number of roles and permissions in database\n" +
+				"  • Number of roles, permissions, and services in database\n" +
 				"  • Configuration file location\n" +
 				"  • Database file location\n\n" +
 				"Examples:\n" +
@@ -601,10 +801,16 @@ var cmd = &cli.Command{
 					return fmt.Errorf("failed to count permissions: %w", err)
 				}
 
+				serviceCount, err := database.CountServices()
+				if err != nil {
+					return fmt.Errorf("failed to count services: %w", err)
+				}
+
 				configPath, _ := config.GetDefaultConfigPath()
 				fmt.Println("GCP IAM Configuration:")
 				fmt.Printf("  Roles:        %d\n", roleCount)
 				fmt.Printf("  Permissions:  %d\n", permissionCount)
+				fmt.Printf("  Services:     %d\n", serviceCount)
 				fmt.Printf("  ConfigFile:   %s\n", configPath)
 				fmt.Printf("  DatabasePath: %s\n", cfg.DatabasePath)
 

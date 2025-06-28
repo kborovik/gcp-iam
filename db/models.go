@@ -22,6 +22,14 @@ type Permission struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+type Service struct {
+	Name        string    `json:"name"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 func (db *DB) InsertRole(role *Role) error {
 	query := `
 		INSERT INTO roles (name, title, description, stage, deleted)
@@ -328,6 +336,125 @@ func (db *DB) GetPermissionNames() ([]string, error) {
 	}
 
 	return permissionNames, rows.Err()
+}
+
+// Service-related methods
+
+func (db *DB) InsertService(service *Service) error {
+	query := `
+		INSERT INTO services (name, title, description)
+		VALUES (?, ?, ?)
+		ON CONFLICT(name) DO UPDATE SET
+			title = excluded.title,
+			description = excluded.description,
+			updated_at = CURRENT_TIMESTAMP
+	`
+	_, err := db.conn.Exec(query, service.Name, service.Title, service.Description)
+	return err
+}
+
+func (db *DB) GetServiceByName(name string) (*Service, error) {
+	query := `
+		SELECT name, title, description, created_at, updated_at
+		FROM services
+		WHERE name = ?
+	`
+	row := db.conn.QueryRow(query, name)
+
+	var service Service
+	err := row.Scan(&service.Name, &service.Title, &service.Description, &service.CreatedAt, &service.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &service, nil
+}
+
+func (db *DB) SearchServices(query string) ([]Service, error) {
+	sqlQuery := `
+		SELECT name, title, description, created_at, updated_at
+		FROM services
+		WHERE name LIKE ? OR title LIKE ? OR description LIKE ?
+		ORDER BY name
+	`
+	pattern := "%" + query + "%"
+	rows, err := db.conn.Query(sqlQuery, pattern, pattern, pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var services []Service
+	for rows.Next() {
+		var service Service
+		err := rows.Scan(&service.Name, &service.Title, &service.Description, &service.CreatedAt, &service.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		services = append(services, service)
+	}
+
+	return services, rows.Err()
+}
+
+func (db *DB) GetAllServices() ([]Service, error) {
+	sqlQuery := `
+		SELECT name, title, description, created_at, updated_at
+		FROM services
+		ORDER BY name
+	`
+	rows, err := db.conn.Query(sqlQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var services []Service
+	for rows.Next() {
+		var service Service
+		err := rows.Scan(&service.Name, &service.Title, &service.Description, &service.CreatedAt, &service.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		services = append(services, service)
+	}
+
+	return services, rows.Err()
+}
+
+func (db *DB) GetServiceNames() ([]string, error) {
+	query := `
+		SELECT name
+		FROM services
+		ORDER BY name
+	`
+	rows, err := db.conn.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var serviceNames []string
+	for rows.Next() {
+		var name string
+		err := rows.Scan(&name)
+		if err != nil {
+			return nil, err
+		}
+		serviceNames = append(serviceNames, name)
+	}
+
+	return serviceNames, rows.Err()
+}
+
+func (db *DB) CountServices() (int, error) {
+	query := `SELECT COUNT(*) FROM services`
+	var count int
+	err := db.conn.QueryRow(query).Scan(&count)
+	return count, err
 }
 
 // MigrateRoleNames removes "roles/" prefix from existing role names in database

@@ -58,6 +58,17 @@ func (db *DB) createTables() error {
 
 	CREATE INDEX IF NOT EXISTS idx_permissions_role ON permissions(role);
 	CREATE INDEX IF NOT EXISTS idx_permissions_permission ON permissions(permission);
+
+	CREATE TABLE IF NOT EXISTS services (
+		name TEXT PRIMARY KEY,
+		title TEXT,
+		description TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_services_name ON services(name);
+	CREATE INDEX IF NOT EXISTS idx_services_title ON services(title);
 	`
 
 	_, err := db.conn.Exec(schema)
