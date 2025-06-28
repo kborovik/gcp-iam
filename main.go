@@ -13,7 +13,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-const Version = "1.0.2"
+const Version = "1.1.0"
 
 // normalizeRoleName strips the "roles/" prefix if present
 func normalizeRoleName(roleName string) string {
@@ -261,7 +261,7 @@ var cmd = &cli.Command{
 
 						fmt.Printf("Found %d roles matching '%s':\n", len(roles), query)
 						for _, role := range roles {
-							fmt.Printf("  %s - %s\n", role.Name, role.Title)
+							fmt.Printf("  - %-40s %s\n", role.Name, role.Title)
 						}
 
 						return nil
@@ -442,7 +442,7 @@ var cmd = &cli.Command{
 
 						fmt.Printf("Roles with this permission (%d):\n", len(roles))
 						for _, role := range roles {
-							fmt.Printf("  %s - %s\n", role.Name, role.Title)
+							fmt.Printf("  - %-40s %s\n", role.Name, role.Title)
 						}
 
 						return nil
@@ -484,7 +484,7 @@ var cmd = &cli.Command{
 
 						fmt.Printf("Found %d permissions matching '%s':\n", len(permissions), query)
 						for _, perm := range permissions {
-							fmt.Printf("  %s\n", perm.Permission)
+							fmt.Printf("  - %s\n", perm.Permission)
 						}
 
 						return nil
@@ -539,11 +539,6 @@ var cmd = &cli.Command{
 
 						fmt.Printf("Service: %s\n", service.Name)
 						fmt.Printf("Title: %s\n", service.Title)
-						if service.Description != "" && service.Description != service.Title {
-							fmt.Printf("Description: %s\n", service.Description)
-						}
-						fmt.Printf("Created: %s\n", service.CreatedAt.Format("2006-01-02 15:04:05"))
-						fmt.Printf("Updated: %s\n", service.UpdatedAt.Format("2006-01-02 15:04:05"))
 
 						return nil
 					},
@@ -587,9 +582,9 @@ var cmd = &cli.Command{
 							return nil
 						}
 
-						fmt.Printf("Found %d services matching '%s':\n\n", len(services), query)
+						fmt.Printf("Found %d services matching '%s':\n", len(services), query)
 						for _, service := range services {
-							fmt.Printf("%-50s %s\n", service.Name, service.Title)
+							fmt.Printf("  - %-40s %s\n", service.Name, service.Title)
 						}
 
 						return nil
@@ -605,8 +600,8 @@ var cmd = &cli.Command{
 				"  --roles    Only update IAM roles and permissions\n" +
 				"  --services Only update Google Cloud services\n\n" +
 				"Examples:\n" +
-				"  gcp-iam update           # Update both roles and services\n" +
-				"  gcp-iam update --roles   # Update only roles and permissions\n" +
+				"  gcp-iam update            # Update both roles and services\n" +
+				"  gcp-iam update --roles    # Update only roles and permissions\n" +
 				"  gcp-iam update --services # Update only services",
 			Flags: []cli.Flag{
 				&cli.BoolFlag{
@@ -638,8 +633,7 @@ var cmd = &cli.Command{
 
 				// If no flags specified, update both
 				if !updateRoles && !updateServices {
-					updateRoles = true
-					updateServices = true
+					return cli.ShowSubcommandHelp(cmd)
 				}
 
 				// Update roles and permissions if requested
@@ -749,18 +743,18 @@ var cmd = &cli.Command{
 			Action: func(ctx context.Context, cmd *cli.Command) error {
 				cfg, err := config.Load()
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to load config: %w", err)
 				}
 
 				database, err := db.New(cfg.DatabasePath)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to open database: %w", err)
 				}
 				defer database.Close()
 
 				serviceNames, err := database.GetServiceNames()
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to get service names: %w", err)
 				}
 
 				for _, name := range serviceNames {

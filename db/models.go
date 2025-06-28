@@ -23,11 +23,10 @@ type Permission struct {
 }
 
 type Service struct {
-	Name        string    `json:"name"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	Name      string    `json:"name"`
+	Title     string    `json:"title"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (db *DB) InsertRole(role *Role) error {
@@ -342,27 +341,26 @@ func (db *DB) GetPermissionNames() ([]string, error) {
 
 func (db *DB) InsertService(service *Service) error {
 	query := `
-		INSERT INTO services (name, title, description)
-		VALUES (?, ?, ?)
+		INSERT INTO services (name, title)
+		VALUES (?, ?)
 		ON CONFLICT(name) DO UPDATE SET
 			title = excluded.title,
-			description = excluded.description,
 			updated_at = CURRENT_TIMESTAMP
 	`
-	_, err := db.conn.Exec(query, service.Name, service.Title, service.Description)
+	_, err := db.conn.Exec(query, service.Name, service.Title)
 	return err
 }
 
 func (db *DB) GetServiceByName(name string) (*Service, error) {
 	query := `
-		SELECT name, title, description, created_at, updated_at
+		SELECT name, title, created_at, updated_at
 		FROM services
 		WHERE name = ?
 	`
 	row := db.conn.QueryRow(query, name)
 
 	var service Service
-	err := row.Scan(&service.Name, &service.Title, &service.Description, &service.CreatedAt, &service.UpdatedAt)
+	err := row.Scan(&service.Name, &service.Title, &service.CreatedAt, &service.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -375,13 +373,13 @@ func (db *DB) GetServiceByName(name string) (*Service, error) {
 
 func (db *DB) SearchServices(query string) ([]Service, error) {
 	sqlQuery := `
-		SELECT name, title, description, created_at, updated_at
+		SELECT name, title, created_at, updated_at
 		FROM services
-		WHERE name LIKE ? OR title LIKE ? OR description LIKE ?
+		WHERE name LIKE ? OR title LIKE ?
 		ORDER BY name
 	`
 	pattern := "%" + query + "%"
-	rows, err := db.conn.Query(sqlQuery, pattern, pattern, pattern)
+	rows, err := db.conn.Query(sqlQuery, pattern, pattern)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +388,7 @@ func (db *DB) SearchServices(query string) ([]Service, error) {
 	var services []Service
 	for rows.Next() {
 		var service Service
-		err := rows.Scan(&service.Name, &service.Title, &service.Description, &service.CreatedAt, &service.UpdatedAt)
+		err := rows.Scan(&service.Name, &service.Title, &service.CreatedAt, &service.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -402,7 +400,7 @@ func (db *DB) SearchServices(query string) ([]Service, error) {
 
 func (db *DB) GetAllServices() ([]Service, error) {
 	sqlQuery := `
-		SELECT name, title, description, created_at, updated_at
+		SELECT name, title, created_at, updated_at
 		FROM services
 		ORDER BY name
 	`
@@ -415,7 +413,7 @@ func (db *DB) GetAllServices() ([]Service, error) {
 	var services []Service
 	for rows.Next() {
 		var service Service
-		err := rows.Scan(&service.Name, &service.Title, &service.Description, &service.CreatedAt, &service.UpdatedAt)
+		err := rows.Scan(&service.Name, &service.Title, &service.CreatedAt, &service.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}

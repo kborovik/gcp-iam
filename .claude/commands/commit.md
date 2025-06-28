@@ -7,5 +7,6 @@ description: Create a git commit
 
 Based on the recent code changes:
 
-- Bump application version in `main.go` file.
+- Determine version from committed changes
+- Update application version in `main.go` file
 - Create a single git commit.

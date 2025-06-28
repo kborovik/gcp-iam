@@ -73,4 +73,4 @@ release: build
 clean:
 	rm -rf dist/
 	rm -f $(PACKAGE_NAME)
-	go clean
+	go clean -testcache

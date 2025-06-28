@@ -2,7 +2,6 @@ package update
 
 import (
 	"context"
-	"encoding/csv"
 	"fmt"
 	"log"
 	"os/exec"
@@ -89,13 +88,17 @@ func (u *Updater) UpdateServices(ctx context.Context) error {
 	fmt.Printf("Fetched %d services from GCP\n", len(services))
 
 	// Update database with services
+	successCount := 0
 	for _, service := range services {
 		err = u.db.InsertService(&service)
 		if err != nil {
 			log.Printf("Warning: failed to insert service %s: %v", service.Name, err)
 			continue
 		}
+		successCount++
 	}
+	
+	fmt.Printf("Successfully inserted %d services into database\n", successCount)
 
 	fmt.Println("Successfully updated Google Cloud services")
 	return nil
@@ -177,42 +180,41 @@ func (u *Updater) updateDatabase(roles []db.Role) error {
 	return nil
 }
 
-// fetchServices fetches all Google Cloud services using gcloud command
+// fetchServices fetches all Google (Core) Cloud services using gcloud command
 func (u *Updater) fetchServices(ctx context.Context) ([]db.Service, error) {
-	// Execute gcloud command to get services
-	cmd := exec.CommandContext(ctx, "gcloud", "services", "list", "--available", "--format=csv(config.name,config.title)")
+	cmd := exec.CommandContext(ctx, "gcloud", "services", "list", "--available", "--format=csv(config.name,config.title)", "--filter=config.name~googleapis.com")
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute gcloud command: %w", err)
 	}
 
-	// Parse CSV output
-	reader := csv.NewReader(strings.NewReader(string(output)))
-	records, err := reader.ReadAll()
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse CSV output: %w", err)
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(lines) <= 1 {
+		return nil, fmt.Errorf("no services found in gcloud output")
 	}
 
 	var services []db.Service
-
-	// Skip header row and process records
-	for i, record := range records {
-		if i == 0 {
-			continue // Skip header
-		}
-
-		if len(record) < 2 {
+	// Skip header line
+	for _, line := range lines[1:] {
+		if line == "" {
 			continue
 		}
 
-		// Only include googleapis.com services
-		if strings.Contains(record[0], "googleapis.com") {
-			service := db.Service{
-				Name:        record[0],
-				Title:       record[1],
-				Description: record[1], // Using title as description for now
-			}
-			services = append(services, service)
+		parts := strings.Split(line, ",")
+		if len(parts) < 2 {
+			continue
+		}
+
+		// Clean up CSV fields (remove quotes if present)
+		name := strings.Trim(parts[0], "\"")
+		title := strings.Trim(parts[1], "\"")
+
+		if name != "" {
+			services = append(services, db.Service{
+				Name:  name,
+				Title: title,
+			})
 		}
 	}
 

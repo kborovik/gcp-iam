@@ -62,7 +62,6 @@ func (db *DB) createTables() error {
 	CREATE TABLE IF NOT EXISTS services (
 		name TEXT PRIMARY KEY,
 		title TEXT,
-		description TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
