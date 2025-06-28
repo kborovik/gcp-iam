@@ -13,7 +13,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-const Version = "1.1.0"
+const Version = "v1.1.1"
 
 // normalizeRoleName strips the "roles/" prefix if present
 func normalizeRoleName(roleName string) string {

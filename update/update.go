@@ -97,7 +97,7 @@ func (u *Updater) UpdateServices(ctx context.Context) error {
 		}
 		successCount++
 	}
-	
+
 	fmt.Printf("Successfully inserted %d services into database\n", successCount)
 
 	fmt.Println("Successfully updated Google Cloud services")
