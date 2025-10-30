@@ -16,14 +16,6 @@ func TestLoadDefaultConfig(t *testing.T) {
 	if cfg.DatabasePath == "" {
 		t.Error("DatabasePath should not be empty")
 	}
-
-	if cfg.LogLevel != "info" {
-		t.Errorf("Expected default log level 'info', got '%s'", cfg.LogLevel)
-	}
-
-	if cfg.CacheDir == "" {
-		t.Error("CacheDir should not be empty")
-	}
 }
 
 func TestLoadConfigFromFile(t *testing.T) {
@@ -59,15 +51,6 @@ cache_dir: %s/cache
 	if cfg.DatabasePath != expectedDBPath {
 		t.Errorf("Expected DatabasePath '%s', got '%s'", expectedDBPath, cfg.DatabasePath)
 	}
-
-	if cfg.LogLevel != "debug" {
-		t.Errorf("Expected LogLevel 'debug', got '%s'", cfg.LogLevel)
-	}
-
-	expectedCacheDir := filepath.Join(configDir, "cache")
-	if cfg.CacheDir != expectedCacheDir {
-		t.Errorf("Expected CacheDir '%s', got '%s'", expectedCacheDir, cfg.CacheDir)
-	}
 }
 
 func TestEnsureDirectories(t *testing.T) {
@@ -75,7 +58,6 @@ func TestEnsureDirectories(t *testing.T) {
 
 	cfg := &Config{
 		DatabasePath: filepath.Join(tmpDir, "data", "db.sqlite"),
-		CacheDir:     filepath.Join(tmpDir, "cache"),
 	}
 
 	err := cfg.ensureDirectories()
@@ -86,10 +68,6 @@ func TestEnsureDirectories(t *testing.T) {
 	dbDir := filepath.Dir(cfg.DatabasePath)
 	if _, err := os.Stat(dbDir); os.IsNotExist(err) {
 		t.Errorf("Database directory was not created: %s", dbDir)
-	}
-
-	if _, err := os.Stat(cfg.CacheDir); os.IsNotExist(err) {
-		t.Errorf("Cache directory was not created: %s", cfg.CacheDir)
 	}
 }
 

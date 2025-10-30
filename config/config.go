@@ -5,13 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/kborovik/gcp-iam/internal/constants"
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
 	DatabasePath string `yaml:"database_path" json:"database_path"`
-	LogLevel     string `yaml:"log_level" json:"log_level"`
-	CacheDir     string `yaml:"cache_dir" json:"cache_dir"`
 }
 
 func Load() (*Config, error) {
@@ -20,12 +19,10 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	configDir := filepath.Join(homeDir, ".gcp-iam")
+	configDir := filepath.Join(homeDir, constants.ConfigDirName)
 
 	cfg := &Config{
 		DatabasePath: filepath.Join(configDir, "database.sqlite"),
-		LogLevel:     "info",
-		CacheDir:     filepath.Join(configDir, "cache"),
 	}
 
 	configPath := filepath.Join(configDir, "config.yaml")
@@ -58,17 +55,10 @@ func loadFromFile(cfg *Config, configPath string) error {
 }
 
 func (cfg *Config) ensureDirectories() error {
-	dirs := []string{
-		filepath.Dir(cfg.DatabasePath),
-		cfg.CacheDir,
+	dir := filepath.Dir(cfg.DatabasePath)
+	if err := os.MkdirAll(dir, constants.DefaultDirPermissions); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
-
-	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", dir, err)
-		}
-	}
-
 	return nil
 }
 
@@ -78,5 +68,5 @@ func GetDefaultConfigPath() (string, error) {
 		return "", fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	return filepath.Join(homeDir, ".gcp-iam", "config.yaml"), nil
+	return filepath.Join(homeDir, constants.ConfigDirName, "config.yaml"), nil
 }

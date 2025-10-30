@@ -7,24 +7,26 @@ import (
 	"os"
 	"strings"
 
+	"github.com/kborovik/gcp-iam/cmd"
 	"github.com/kborovik/gcp-iam/config"
 	"github.com/kborovik/gcp-iam/db"
+	"github.com/kborovik/gcp-iam/internal/constants"
 	"github.com/kborovik/gcp-iam/update"
 	"github.com/urfave/cli/v3"
 )
 
-const Version = "v1.1.1"
+const Version = "v1.2.0"
 
 // normalizeRoleName strips the "roles/" prefix if present
 func normalizeRoleName(roleName string) string {
-	if after, ok := strings.CutPrefix(roleName, "roles/"); ok {
+	if after, ok := strings.CutPrefix(roleName, constants.RolePrefix); ok {
 		return after
 	}
 	return roleName
 }
 
-// completeRoleNames provides completion for role names
-func completeRoleNames(cmd *cli.Command) {
+// completeNames provides generic completion for names using a database fetch function
+func completeNames(cmd *cli.Command, fetchNames func(*db.DB) ([]string, error)) {
 	// Check if this is being called for completion
 	if os.Getenv("COMP_LINE") == "" {
 		return
@@ -41,7 +43,7 @@ func completeRoleNames(cmd *cli.Command) {
 	}
 	defer database.Close()
 
-	roleNames, err := database.GetRoleNames()
+	names, err := fetchNames(database)
 	if err != nil {
 		return
 	}
@@ -52,112 +54,38 @@ func completeRoleNames(cmd *cli.Command) {
 		currentArg = args.First()
 	}
 
-	for _, name := range roleNames {
+	for _, name := range names {
 		if currentArg == "" || strings.HasPrefix(name, currentArg) {
 			fmt.Println(name)
 		}
 	}
+}
+
+// completeRoleNames provides completion for role names
+func completeRoleNames(cmd *cli.Command) {
+	completeNames(cmd, (*db.DB).GetRoleNames)
 }
 
 // completePermissionNames provides completion for permission names
 func completePermissionNames(cmd *cli.Command) {
-	// Check if this is being called for completion
-	if os.Getenv("COMP_LINE") == "" {
-		return
-	}
-
-	cfg, err := config.Load()
-	if err != nil {
-		return
-	}
-
-	database, err := db.New(cfg.DatabasePath)
-	if err != nil {
-		return
-	}
-	defer database.Close()
-
-	permissionNames, err := database.GetPermissionNames()
-	if err != nil {
-		return
-	}
-
-	// Filter based on current input if available
-	currentArg := ""
-	if args := cmd.Args(); args.Len() > 0 {
-		currentArg = args.First()
-	}
-
-	for _, name := range permissionNames {
-		if currentArg == "" || strings.HasPrefix(name, currentArg) {
-			fmt.Println(name)
-		}
-	}
+	completeNames(cmd, (*db.DB).GetPermissionNames)
 }
 
 // completeServiceNames provides completion for service names
 func completeServiceNames(cmd *cli.Command) {
-	// Check if this is being called for completion
-	if os.Getenv("COMP_LINE") == "" {
-		return
-	}
-
-	cfg, err := config.Load()
-	if err != nil {
-		return
-	}
-
-	database, err := db.New(cfg.DatabasePath)
-	if err != nil {
-		return
-	}
-	defer database.Close()
-
-	serviceNames, err := database.GetServiceNames()
-	if err != nil {
-		return
-	}
-
-	// Filter based on current input if available
-	currentArg := ""
-	if args := cmd.Args(); args.Len() > 0 {
-		currentArg = args.First()
-	}
-
-	for _, name := range serviceNames {
-		if currentArg == "" || strings.HasPrefix(name, currentArg) {
-			fmt.Println(name)
-		}
-	}
+	completeNames(cmd, (*db.DB).GetServiceNames)
 }
 
-var cmd = &cli.Command{
+var app = &cli.Command{
 	Name:                  "gcp-iam",
 	Usage:                 "Query Google Cloud IAM Roles and Permissions",
 	Version:               Version,
 	Suggest:               true,
 	EnableShellCompletion: true,
 	HideHelpCommand:       true,
-	Action: func(ctx context.Context, cmd *cli.Command) error {
-		cfg, err := config.Load()
-		if err != nil {
-			return fmt.Errorf("failed to load config: %w", err)
-		}
-
-		database, err := db.New(cfg.DatabasePath)
-		if err != nil {
-			return fmt.Errorf("failed to open database: %w", err)
-		}
-		defer database.Close()
-
-		if cmd.Metadata == nil {
-			cmd.Metadata = make(map[string]any)
-		}
-		cmd.Metadata["config"] = cfg
-		cmd.Metadata["db"] = database
-
-		return cli.ShowAppHelp(cmd)
-	},
+	Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
+		return cli.ShowAppHelp(c)
+	}),
 	Commands: []*cli.Command{
 		{
 			Name:  "role",
@@ -177,25 +105,14 @@ var cmd = &cli.Command{
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
 						completeRoleNames(cmd)
 					},
-					Action: func(ctx context.Context, cmd *cli.Command) error {
-						roleName := cmd.Args().First()
+					Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
+						roleName := c.Args().First()
 						if roleName == "" {
-							return cli.ShowSubcommandHelp(cmd)
+							return cli.ShowSubcommandHelp(c)
 						}
 
 						// Normalize role name (strip roles/ prefix if present)
 						roleName = normalizeRoleName(roleName)
-
-						cfg, err := config.Load()
-						if err != nil {
-							return fmt.Errorf("failed to load config: %w", err)
-						}
-
-						database, err := db.New(cfg.DatabasePath)
-						if err != nil {
-							return fmt.Errorf("failed to open database: %w", err)
-						}
-						defer database.Close()
 
 						role, err := database.GetRoleByName(roleName)
 						if err != nil {
@@ -223,7 +140,7 @@ var cmd = &cli.Command{
 						}
 
 						return nil
-					},
+					}),
 				},
 				{
 					Name:      "search",
@@ -237,22 +154,11 @@ var cmd = &cli.Command{
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
 						completeRoleNames(cmd)
 					},
-					Action: func(ctx context.Context, cmd *cli.Command) error {
-						query := cmd.Args().First()
+					Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
+						query := c.Args().First()
 						if query == "" {
-							return cli.ShowSubcommandHelp(cmd)
+							return cli.ShowSubcommandHelp(c)
 						}
-
-						cfg, err := config.Load()
-						if err != nil {
-							return fmt.Errorf("failed to load config: %w", err)
-						}
-
-						database, err := db.New(cfg.DatabasePath)
-						if err != nil {
-							return fmt.Errorf("failed to open database: %w", err)
-						}
-						defer database.Close()
 
 						roles, err := database.SearchRoles(query)
 						if err != nil {
@@ -265,7 +171,7 @@ var cmd = &cli.Command{
 						}
 
 						return nil
-					},
+					}),
 				},
 				{
 					Name:      "compare",
@@ -279,25 +185,14 @@ var cmd = &cli.Command{
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
 						completeRoleNames(cmd)
 					},
-					Action: func(ctx context.Context, cmd *cli.Command) error {
-						args := cmd.Args().Slice()
+					Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
+						args := c.Args().Slice()
 						if len(args) < 2 {
-							return cli.ShowSubcommandHelp(cmd)
+							return cli.ShowSubcommandHelp(c)
 						}
 
 						role1Name := normalizeRoleName(args[0])
 						role2Name := normalizeRoleName(args[1])
-
-						cfg, err := config.Load()
-						if err != nil {
-							return fmt.Errorf("failed to load config: %w", err)
-						}
-
-						database, err := db.New(cfg.DatabasePath)
-						if err != nil {
-							return fmt.Errorf("failed to open database: %w", err)
-						}
-						defer database.Close()
 
 						// Get both roles
 						role1, err := database.GetRoleByName(role1Name)
@@ -383,7 +278,7 @@ var cmd = &cli.Command{
 						fmt.Printf("  Unique to '%s': %d\n", role2.Name, len(onlyInRole2))
 
 						return nil
-					},
+					}),
 				},
 			},
 		},
@@ -406,22 +301,11 @@ var cmd = &cli.Command{
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
 						completePermissionNames(cmd)
 					},
-					Action: func(ctx context.Context, cmd *cli.Command) error {
-						permissionName := cmd.Args().First()
+					Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
+						permissionName := c.Args().First()
 						if permissionName == "" {
-							return cli.ShowSubcommandHelp(cmd)
+							return cli.ShowSubcommandHelp(c)
 						}
-
-						cfg, err := config.Load()
-						if err != nil {
-							return fmt.Errorf("failed to load config: %w", err)
-						}
-
-						database, err := db.New(cfg.DatabasePath)
-						if err != nil {
-							return fmt.Errorf("failed to open database: %w", err)
-						}
-						defer database.Close()
 
 						permission, err := database.GetPermissionByName(permissionName)
 						if err != nil {
@@ -446,7 +330,7 @@ var cmd = &cli.Command{
 						}
 
 						return nil
-					},
+					}),
 				},
 				{
 					Name:      "search",
@@ -460,22 +344,11 @@ var cmd = &cli.Command{
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
 						completePermissionNames(cmd)
 					},
-					Action: func(ctx context.Context, cmd *cli.Command) error {
-						query := cmd.Args().First()
+					Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
+						query := c.Args().First()
 						if query == "" {
-							return cli.ShowSubcommandHelp(cmd)
+							return cli.ShowSubcommandHelp(c)
 						}
-
-						cfg, err := config.Load()
-						if err != nil {
-							return fmt.Errorf("failed to load config: %w", err)
-						}
-
-						database, err := db.New(cfg.DatabasePath)
-						if err != nil {
-							return fmt.Errorf("failed to open database: %w", err)
-						}
-						defer database.Close()
 
 						permissions, err := database.SearchPermissions(query)
 						if err != nil {
@@ -488,7 +361,7 @@ var cmd = &cli.Command{
 						}
 
 						return nil
-					},
+					}),
 				},
 			},
 		},
@@ -510,22 +383,11 @@ var cmd = &cli.Command{
 					ShellComplete: func(ctx context.Context, cmd *cli.Command) {
 						completeServiceNames(cmd)
 					},
-					Action: func(ctx context.Context, cmd *cli.Command) error {
-						serviceName := cmd.Args().First()
+					Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
+						serviceName := c.Args().First()
 						if serviceName == "" {
-							return cli.ShowSubcommandHelp(cmd)
+							return cli.ShowSubcommandHelp(c)
 						}
-
-						cfg, err := config.Load()
-						if err != nil {
-							return fmt.Errorf("failed to load config: %w", err)
-						}
-
-						database, err := db.New(cfg.DatabasePath)
-						if err != nil {
-							return fmt.Errorf("failed to open database: %w", err)
-						}
-						defer database.Close()
 
 						service, err := database.GetServiceByName(serviceName)
 						if err != nil {
@@ -541,7 +403,7 @@ var cmd = &cli.Command{
 						fmt.Printf("Title: %s\n", service.Title)
 
 						return nil
-					},
+					}),
 				},
 				{
 					Name:      "search",
@@ -555,22 +417,11 @@ var cmd = &cli.Command{
 						"  gcp-iam service search storage\n" +
 						"  gcp-iam service search compute\n" +
 						"  gcp-iam service search 'cloud sql'",
-					Action: func(ctx context.Context, cmd *cli.Command) error {
-						query := strings.Join(cmd.Args().Slice(), " ")
+					Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
+						query := strings.Join(c.Args().Slice(), " ")
 						if query == "" {
-							return cli.ShowSubcommandHelp(cmd)
+							return cli.ShowSubcommandHelp(c)
 						}
-
-						cfg, err := config.Load()
-						if err != nil {
-							return fmt.Errorf("failed to load config: %w", err)
-						}
-
-						database, err := db.New(cfg.DatabasePath)
-						if err != nil {
-							return fmt.Errorf("failed to open database: %w", err)
-						}
-						defer database.Close()
 
 						services, err := database.SearchServices(query)
 						if err != nil {
@@ -588,7 +439,7 @@ var cmd = &cli.Command{
 						}
 
 						return nil
-					},
+					}),
 				},
 			},
 		},
@@ -596,50 +447,40 @@ var cmd = &cli.Command{
 			Name:  "update",
 			Usage: "Update IAM roles, permissions, and services",
 			Description: "Fetch the latest data from Google Cloud Platform and update the local database.\n\n" +
-				"By default, updates both roles and permissions. Use flags to update specific resources:\n" +
-				"  --roles    Only update IAM roles and permissions\n" +
-				"  --services Only update Google Cloud services\n\n" +
+				"Use flags to specify which resources to update:\n" +
+				"  --roles    Update IAM roles and permissions\n" +
+				"  --services Update Google Cloud services\n\n" +
+				"You can specify both flags to update all resources.\n\n" +
 				"Examples:\n" +
-				"  gcp-iam update            # Update both roles and services\n" +
-				"  gcp-iam update --roles    # Update only roles and permissions\n" +
-				"  gcp-iam update --services # Update only services",
+				"  gcp-iam update --roles --services # Update both roles and services\n" +
+				"  gcp-iam update --roles            # Update only roles and permissions\n" +
+				"  gcp-iam update --services         # Update only services",
 			Flags: []cli.Flag{
 				&cli.BoolFlag{
 					Name:  "roles",
-					Usage: "Only update IAM roles and permissions",
+					Usage: "Update IAM roles and permissions",
 				},
 				&cli.BoolFlag{
 					Name:  "services",
-					Usage: "Only update Google Cloud services",
+					Usage: "Update Google Cloud services",
 				},
 			},
-			Action: func(ctx context.Context, cmd *cli.Command) error {
-				cfg, err := config.Load()
-				if err != nil {
-					return fmt.Errorf("failed to load config: %w", err)
-				}
-
-				database, err := db.New(cfg.DatabasePath)
-				if err != nil {
-					return fmt.Errorf("failed to open database: %w", err)
-				}
-				defer database.Close()
-
+			Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
 				updater := update.New(database)
 
 				// Determine what to update based on flags
-				updateRoles := cmd.Bool("roles")
-				updateServices := cmd.Bool("services")
+				updateRoles := c.Bool("roles")
+				updateServices := c.Bool("services")
 
-				// If no flags specified, update both
+				// If no flags specified, show help
 				if !updateRoles && !updateServices {
-					return cli.ShowSubcommandHelp(cmd)
+					return cli.ShowSubcommandHelp(c)
 				}
 
 				// Update roles and permissions if requested
 				if updateRoles {
 					// First update all roles
-					err = updater.UpdateRoles(ctx)
+					err := updater.UpdateRoles(ctx)
 					if err != nil {
 						// Check if it's an authentication error and return it directly
 						if strings.Contains(err.Error(), "Authentication failed accessing Google Cloud IAM API") {
@@ -672,7 +513,7 @@ var cmd = &cli.Command{
 
 				// Update services if requested
 				if updateServices {
-					err = updater.UpdateServices(ctx)
+					err := updater.UpdateServices(ctx)
 					if err != nil {
 						return fmt.Errorf("failed to update services: %w", err)
 					}
@@ -680,24 +521,13 @@ var cmd = &cli.Command{
 
 				fmt.Println("Update completed successfully")
 				return nil
-			},
+			}),
 		},
 		{
 			Name:   "complete-roles",
 			Usage:  "List all role names for shell completion",
 			Hidden: true,
-			Action: func(ctx context.Context, cmd *cli.Command) error {
-				cfg, err := config.Load()
-				if err != nil {
-					return err
-				}
-
-				database, err := db.New(cfg.DatabasePath)
-				if err != nil {
-					return err
-				}
-				defer database.Close()
-
+			Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
 				roleNames, err := database.GetRoleNames()
 				if err != nil {
 					return err
@@ -707,24 +537,13 @@ var cmd = &cli.Command{
 					fmt.Println(name)
 				}
 				return nil
-			},
+			}),
 		},
 		{
 			Name:   "complete-permissions",
 			Usage:  "List all permission names for shell completion",
 			Hidden: true,
-			Action: func(ctx context.Context, cmd *cli.Command) error {
-				cfg, err := config.Load()
-				if err != nil {
-					return err
-				}
-
-				database, err := db.New(cfg.DatabasePath)
-				if err != nil {
-					return err
-				}
-				defer database.Close()
-
+			Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
 				permissionNames, err := database.GetPermissionNames()
 				if err != nil {
 					return err
@@ -734,24 +553,13 @@ var cmd = &cli.Command{
 					fmt.Println(name)
 				}
 				return nil
-			},
+			}),
 		},
 		{
 			Name:   "complete-services",
 			Usage:  "List all service names for shell completion",
 			Hidden: true,
-			Action: func(ctx context.Context, cmd *cli.Command) error {
-				cfg, err := config.Load()
-				if err != nil {
-					return fmt.Errorf("failed to load config: %w", err)
-				}
-
-				database, err := db.New(cfg.DatabasePath)
-				if err != nil {
-					return fmt.Errorf("failed to open database: %w", err)
-				}
-				defer database.Close()
-
+			Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
 				serviceNames, err := database.GetServiceNames()
 				if err != nil {
 					return fmt.Errorf("failed to get service names: %w", err)
@@ -761,7 +569,7 @@ var cmd = &cli.Command{
 					fmt.Println(name)
 				}
 				return nil
-			},
+			}),
 		},
 		{
 			Name:  "info",
@@ -773,18 +581,7 @@ var cmd = &cli.Command{
 				"  • Database file location\n\n" +
 				"Examples:\n" +
 				"  gcp-iam info",
-			Action: func(ctx context.Context, cmd *cli.Command) error {
-				cfg, err := config.Load()
-				if err != nil {
-					return fmt.Errorf("failed to load config: %w", err)
-				}
-
-				database, err := db.New(cfg.DatabasePath)
-				if err != nil {
-					return fmt.Errorf("failed to open database: %w", err)
-				}
-				defer database.Close()
-
+			Action: cmd.WithDB(func(ctx context.Context, c *cli.Command, cfg *config.Config, database *db.DB) error {
 				roleCount, err := database.CountRoles()
 				if err != nil {
 					return fmt.Errorf("failed to count roles: %w", err)
@@ -809,13 +606,13 @@ var cmd = &cli.Command{
 				fmt.Printf("  DatabasePath: %s\n", cfg.DatabasePath)
 
 				return nil
-			},
+			}),
 		},
 	},
 }
 
 func main() {
-	err := cmd.Run(context.Background(), os.Args)
+	err := app.Run(context.Background(), os.Args)
 	if err != nil {
 		log.Fatalf("failed to run command: %v", err)
 	}

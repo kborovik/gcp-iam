@@ -55,7 +55,7 @@ func TestCLICommands(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
-			err := cmd.Run(context.Background(), tt.args)
+			err := app.Run(context.Background(), tt.args)
 
 			w.Close()
 			buf.ReadFrom(r)

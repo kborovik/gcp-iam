@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/kborovik/gcp-iam/internal/constants"
 	_ "modernc.org/sqlite"
 )
 
@@ -76,5 +77,5 @@ func (db *DB) createTables() error {
 
 func ensureDir(filePath string) error {
 	dir := filepath.Dir(filePath)
-	return os.MkdirAll(dir, 0755)
+	return os.MkdirAll(dir, constants.DefaultDirPermissions)
 }

@@ -21,7 +21,7 @@ help: deps
 deps:
 	mkdir -p dist/
 	command -v staticcheck >/dev/null 2>&1 || go install honnef.co/go/tools/cmd/staticcheck@latest
-	command -v modernize >/dev/null 2>&1 || go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest
+	command -v modernize >/dev/null 2>&1 || go install golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest
 	go mod download
 	go mod tidy
 

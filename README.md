@@ -14,7 +14,7 @@ A fast command-line tool for exploring Google Cloud IAM roles and permissions. D
 
 ```bash
 # Update local database with latest GCP IAM data
-gcp-iam update
+gcp-iam update --roles --services
 
 # See what's in your database
 gcp-iam info
@@ -59,7 +59,9 @@ gcp-iam permission show compute.instances.create
 
 ```bash
 # Update your local database with latest GCP IAM data
-gcp-iam update
+gcp-iam update --roles --services   # Update both roles and services
+gcp-iam update --roles              # Update only roles and permissions
+gcp-iam update --services           # Update only services
 
 # View database statistics and configuration
 gcp-iam info
@@ -146,7 +148,7 @@ To update data from GCP, you need to authenticate:
 gcloud auth login --update-adc
 
 # Then update your local database
-gcp-iam update
+gcp-iam update --roles --services
 ```
 
 If you see authentication errors, the tool will guide you with the exact command to run.
@@ -162,22 +164,26 @@ If you see authentication errors, the tool will guide you with the exact command
 ## 🆘 Common Use Cases
 
 **Security Auditing**: Understand what permissions a role actually grants
+
 ```bash
 gcp-iam role show iam.serviceAccountUser
 ```
 
 **Least Privilege**: Find the minimal role for specific permissions
+
 ```bash
 gcp-iam permission show pubsub.topics.publish
 ```
 
 **Role Discovery**: Find roles for specific GCP services
+
 ```bash
 gcp-iam role search kubernetes
 gcp-iam role search bigquery
 ```
 
 **Permission Research**: Understand GCP permission structure
+
 ```bash
 gcp-iam permission search "instances.create"
 gcp-iam permission search "buckets"
